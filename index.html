@@ -8,14 +8,24 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #e2e8f0; min-height: 100vh; padding: 20px; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #e2e8f0; min-height: 100vh; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
         .header { text-align: center; margin-bottom: 40px; padding: 30px; background: rgba(30, 41, 59, 0.8); border-radius: 20px; border: 1px solid rgba(148, 163, 184, 0.2); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
         .header h1 { font-size: 2.5rem; background: linear-gradient(90deg, #60a5fa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
         .header p { font-size: 1.1rem; color: #94a3b8; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+        .rules { background: rgba(30, 41, 59, 0.8); border-radius: 15px; padding: 25px; margin-bottom: 30px; border-left: 4px solid #3b82f6; }
+        .rules h3 { color: #60a5fa; margin-bottom: 15px; font-size: 1.3rem; }
+        .rules ul { list-style: none; padding-left: 20px; }
+        .rules li { margin-bottom: 8px; color: #cbd5e1; position: relative; padding-left: 25px; }
+        .rules li:before { content: "•"; color: #3b82f6; font-size: 1.5rem; position: absolute; left: 0; top: -2px; }
         .themes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-bottom: 40px; align-items: stretch; }
         .theme-card { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; border: 2px solid rgba(148, 163, 184, 0.1); display: flex; flex-direction: column; height: 100%; position: relative; min-height: 580px; }
         .theme-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #3b82f6, #8b5cf6); }
+        
+        /* 固定位置区域 */
+        .card-top-section { flex: 0 0 auto; }
+        .card-middle-section { flex: 0 0 auto; margin-bottom: 20px; }
+        .card-bottom-section { flex: 0 0 auto; }
         .theme-index { display: inline-block; background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 5px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; margin-bottom: 15px; }
         .theme-title { font-size: 1.4rem; color: #f1f5f9; margin-bottom: 10px; line-height: 1.3; }
         .theme-tag { display: inline-block; background: rgba(139, 92, 246, 0.2); color: #a78bfa; padding: 4px 10px; border-radius: 15px; font-size: 0.85rem; margin-bottom: 15px; }
@@ -64,11 +74,6 @@
         .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
         .status-online { background-color: #10b981; }
         .status-offline { background-color: #ef4444; }
-        
-        /* 固定位置区域 */
-        .card-top-section { flex: 0 0 auto; }
-        .card-middle-section { flex: 0 0 auto; margin-bottom: 20px; }
-        .card-bottom-section { flex: 0 0 auto; }
     </style>
 </head>
 <body>
@@ -112,13 +117,13 @@
                 总报名人数: <span id="total-count">0</span> / 20
             </div>
             <div style="margin-top: 15px; padding: 10px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border-left: 3px solid #10b981;">
-                <small style="color: #34d399;">✅ GitHub Pages版：国内直接访问，无需VPN</small>
+                <small style="color: #34d399;">✅ 云端版本：数据实时同步，所有人都可以访问</small>
             </div>
         </div>
 
         <div class="footer">
             <p>AI 拓边实验室 - 云端投票报名系统 | 基于 Supabase + GitHub Pages</p>
-            <p>© 2026 算法团队内部活动 | 数据实时同步到云端</p>
+            <p>© 2026 算法团队内部活动 | 数据实时同步到云端 | 国内直接访问</p>
         </div>
     </div>
 
@@ -132,7 +137,7 @@
             { id: 4, title: "研发管理", tag: "个人项目经理", desc: "开发个人项目经理助手工具，支持任务梳理、进展追踪和日常记录，提升个人研发效率。" }
         ];
 
-        // Supabase 客户端
+        // Supabase 客户端（使用不同的变量名避免冲突）
         let supabaseClient = null;
         let isConfigured = false;
 
@@ -149,29 +154,6 @@
                 message.style.display = 'none';
                 message.remove();
             }, 3000);
-        }
-
-        // 保存输入框内容
-        function saveInputValues() {
-            const inputs = document.querySelectorAll('input[id^="name-"]');
-            const inputValues = {};
-            inputs.forEach(input => {
-                if (input.value.trim()) {
-                    inputValues[input.id] = input.value;
-                }
-            });
-            sessionStorage.setItem('inputValues', JSON.stringify(inputValues));
-        }
-
-        // 恢复输入框内容
-        function restoreInputValues() {
-            const savedValues = JSON.parse(sessionStorage.getItem('inputValues') || '{}');
-            Object.keys(savedValues).forEach(inputId => {
-                const input = document.getElementById(inputId);
-                if (input && !input.value) {
-                    input.value = savedValues[inputId];
-                }
-            });
         }
 
         // 加载配置
@@ -203,4 +185,484 @@
                     loadData();
                     
                     // 设置实时订阅
-                    setupRe
+                    setupRealtimeSubscription();
+                    
+                    return true;
+                }
+            } catch (error) {
+                console.error('加载配置失败:', error);
+                // 如果预配置失败，显示配置面板让用户手动输入
+                document.getElementById('configPanel').style.display = 'block';
+                document.getElementById('supabaseUrl').value = 'https://mnxlsewwhczawwyjnexr.supabase.co';
+                document.getElementById('supabaseKey').value = 'sb_publishable_82zAM1g-HhuDUIiYHytK_Q_q4CsUUnu';
+            }
+            return false;
+        }
+
+        // 保存配置
+        function saveConfig() {
+            const url = document.getElementById('supabaseUrl').value.trim();
+            const key = document.getElementById('supabaseKey').value.trim();
+            
+            if (!url || !key) {
+                showMessage('请填写完整的配置信息', 'error');
+                return;
+            }
+            
+            if (!url.startsWith('https://') || !url.includes('.supabase.co')) {
+                showMessage('Supabase URL 格式不正确', 'error');
+                return;
+            }
+            
+            try {
+                localStorage.setItem('supabaseUrl', url);
+                localStorage.setItem('supabaseKey', key);
+                
+                // 重新加载配置
+                if (loadConfig()) {
+                    showMessage('配置保存成功，正在重新连接数据库...', 'success');
+                }
+            } catch (error) {
+                console.error('保存配置失败:', error);
+                showMessage('保存配置失败', 'error');
+            }
+        }
+
+        // 显示配置面板功能已移除（根据用户要求）
+
+        // 从云端加载数据
+        async function loadData() {
+            if (!isConfigured || !supabaseClient) {
+                showMessage('请先配置 Supabase 连接', 'error');
+                return;
+            }
+            
+            try {
+                // 查询所有报名记录
+                const { data, error } = await supabaseClient
+                    .from('registrations')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    throw error;
+                }
+                
+                // 按主题分组
+                const themeParticipants = { 1: [], 2: [], 3: [], 4: [] };
+                
+                if (data) {
+                    data.forEach(record => {
+                        const themeId = record.theme_id;
+                        if (themeParticipants[themeId]) {
+                            themeParticipants[themeId].push({
+                                id: record.id,
+                                name: record.name,
+                                date: new Date(record.created_at).toLocaleString('zh-CN')
+                            });
+                        }
+                    });
+                }
+                
+                // 更新界面
+                updateUI(themeParticipants);
+                
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                showMessage(`加载数据失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 报名到云端
+        async function signup(themeId) {
+            if (!isConfigured || !supabaseClient) {
+                showMessage('请先配置 Supabase 连接', 'error');
+                return;
+            }
+            
+            const input = document.querySelector(`#name-${themeId}`);
+            if (!input) return;
+            
+            const name = input.value.trim();
+            if (!name) {
+                showMessage('请输入姓名', 'error');
+                return;
+            }
+            
+            if (name.length > 20) {
+                showMessage('姓名不能超过20个字符', 'error');
+                return;
+            }
+            
+            try {
+                // 检查是否已满
+                const { data: currentData, error: countError } = await supabaseClient
+                    .from('registrations')
+                    .select('id')
+                    .eq('theme_id', themeId);
+                
+                if (countError) throw countError;
+                
+                if (currentData.length >= MAX_PARTICIPANTS) {
+                    showMessage('该主题报名已满', 'error');
+                    return;
+                }
+                
+                // 检查是否已经在其他Signal报名
+                const { data: existingInOtherThemes, error: checkOtherError } = await supabaseClient
+                    .from('registrations')
+                    .select('theme_id')
+                    .eq('name', name);
+                
+                if (checkOtherError) throw checkOtherError;
+                
+                if (existingInOtherThemes.length > 0) {
+                    // 找到已经在哪个Signal报名
+                    const existingThemeId = existingInOtherThemes[0].theme_id;
+                    const themeName = THEMES.find(t => t.id === existingThemeId)?.title || `Signal ${existingThemeId}`;
+                    showMessage(`您已在 ${themeName} 报名，每人只能选择一个主题`, 'error');
+                    return;
+                }
+                
+                // 检查是否在本主题重复报名（冗余检查）
+                const { data: existingInSameTheme, error: checkSameError } = await supabaseClient
+                    .from('registrations')
+                    .select('id')
+                    .eq('theme_id', themeId)
+                    .eq('name', name);
+                
+                if (checkSameError) throw checkSameError;
+                
+                if (existingInSameTheme.length > 0) {
+                    showMessage('该姓名已在本主题报名', 'error');
+                    return;
+                }
+                
+                // 插入新记录
+                const { data, error } = await supabaseClient
+                    .from('registrations')
+                    .insert([
+                        { theme_id: themeId, name: name }
+                    ])
+                    .select();
+                
+                if (error) throw error;
+                
+                // 保存报名ID到本地存储，用于后续取消
+                if (data && data[0]) {
+                    const registrationId = data[0].id;
+                    const myRegistrations = JSON.parse(localStorage.getItem('myRegistrations') || '[]');
+                    myRegistrations.push(registrationId);
+                    localStorage.setItem('myRegistrations', JSON.stringify(myRegistrations));
+                }
+                
+                // 清空输入框
+                input.value = '';
+                
+                // 重新加载数据
+                await loadData();
+                
+                showMessage('报名成功！', 'success');
+                
+            } catch (error) {
+                console.error('报名失败:', error);
+                showMessage(`报名失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 从云端取消报名
+        async function removeParticipant(themeId, participantId) {
+            if (!isConfigured || !supabaseClient) {
+                showMessage('请先配置 Supabase 连接', 'error');
+                return;
+            }
+            
+            try {
+                // 检查是否有权限取消（只能取消自己的报名）
+                const myRegistrations = JSON.parse(localStorage.getItem('myRegistrations') || '[]');
+                if (!myRegistrations.includes(participantId)) {
+                    showMessage('只能取消自己的报名', 'error');
+                    return;
+                }
+                
+                // 查询参与者信息
+                const { data: participantData, error: queryError } = await supabaseClient
+                    .from('registrations')
+                    .select('name')
+                    .eq('id', participantId)
+                    .single();
+                
+                if (queryError) throw queryError;
+                
+                if (!confirm(`确定要取消 ${participantData.name} 的报名吗？`)) {
+                    return;
+                }
+                
+                // 删除记录
+                const { error } = await supabaseClient
+                    .from('registrations')
+                    .delete()
+                    .eq('id', participantId);
+                
+                if (error) throw error;
+                
+                // 从本地存储中移除报名ID
+                const updatedRegistrations = myRegistrations.filter(id => id !== participantId);
+                localStorage.setItem('myRegistrations', JSON.stringify(updatedRegistrations));
+                
+                // 重新加载数据
+                await loadData();
+                
+                showMessage(`已取消 ${participantData.name} 的报名`, 'success');
+                
+            } catch (error) {
+                console.error('取消报名失败:', error);
+                showMessage(`取消报名失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 保存输入框内容
+        function saveInputValues() {
+            const inputs = document.querySelectorAll('input[id^="name-"]');
+            const inputValues = {};
+            inputs.forEach(input => {
+                if (input.value.trim()) {
+                    inputValues[input.id] = input.value;
+                }
+            });
+            sessionStorage.setItem('inputValues', JSON.stringify(inputValues));
+        }
+
+        // 恢复输入框内容
+        function restoreInputValues() {
+            const savedValues = JSON.parse(sessionStorage.getItem('inputValues') || '{}');
+            Object.keys(savedValues).forEach(inputId => {
+                const input = document.getElementById(inputId);
+                if (input && !input.value) {
+                    input.value = savedValues[inputId];
+                }
+            });
+        }
+
+        // 更新界面
+        function updateUI(themeParticipants) {
+            // 保存当前输入框内容
+            saveInputValues();
+            
+            const grid = document.getElementById('themesGrid');
+            if (!grid) return;
+            
+            grid.innerHTML = '';
+            
+            THEMES.forEach(theme => {
+                const participants = themeParticipants[theme.id] || [];
+                const remaining = MAX_PARTICIPANTS - participants.length;
+                const isFull = remaining === 0;
+                const percentage = (participants.length / MAX_PARTICIPANTS) * 100;
+                
+                // 构建报名者列表
+                let registrantsHtml = '';
+                if (participants.length === 0) {
+                    registrantsHtml = '<div class="empty-message">暂无报名</div>';
+                } else {
+                    const myRegistrations = JSON.parse(localStorage.getItem('myRegistrations') || '[]');
+                    registrantsHtml = participants.map(p => {
+                        const isMyRegistration = myRegistrations.includes(p.id);
+                        return `
+                        <div class="registrant-item">
+                            <span>${p.name}</span>
+                            <div>
+                                <small style="color: #94a3b8; margin-right: 10px;">${p.date}</small>
+                                ${isMyRegistration ? `<button class="remove-btn" onclick="removeParticipant(${theme.id}, ${p.id})">取消</button>` : ''}
+                            </div>
+                        </div>
+                    `}).join('');
+                }
+                
+                const card = document.createElement('div');
+                card.className = 'theme-card';
+                card.innerHTML = `
+                    <div class="card-top-section">
+                        <span class="theme-index">Signal 0${theme.id}</span>
+                        <h3 class="theme-title">${theme.title}</h3>
+                        <span class="theme-tag">${theme.tag}</span>
+                    </div>
+                    
+                    <div class="card-middle-section">
+                        <p class="theme-desc">${theme.desc}</p>
+                    </div>
+                    
+                    <div class="card-bottom-section">
+                        <div class="capacity">
+                            <span>剩余名额: <span>${remaining}</span>/5</span>
+                            <div class="capacity-meter">
+                                <div class="capacity-fill" style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="signup-form">
+                            <div class="form-group">
+                                <label for="name-${theme.id}">姓名</label>
+                                <input type="text" id="name-${theme.id}" placeholder="请输入姓名" maxlength="20">
+                            </div>
+                            <button class="signup-btn" onclick="signup(${theme.id})" ${isFull ? 'disabled' : ''}>
+                                ${isFull ? '已满' : '报名'}
+                            </button>
+                            ${isFull ? '<div class="full-badge">⚠️ 名额已满</div>' : ''}
+                        </div>
+                        
+                        <div class="registrants-list">
+                            ${registrantsHtml}
+                        </div>
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+            
+            // 恢复输入框内容
+            setTimeout(restoreInputValues, 10);
+            
+            // 更新统计
+            updateTotalStats(themeParticipants);
+        }
+
+        // 更新统计
+        function updateTotalStats(themeParticipants) {
+            const total = Object.values(themeParticipants).reduce((sum, participants) => sum + participants.length, 0);
+            const element = document.getElementById('total-count');
+            if (element) {
+                element.textContent = total;
+            }
+        }
+
+        // 清除所有数据功能已移除（根据用户要求）
+
+        // 导出数据
+        async function exportData() {
+            if (!isConfigured || !supabaseClient) {
+                showMessage('请先配置 Supabase 连接', 'error');
+                return;
+            }
+            
+            try {
+                // 查询所有数据
+                const { data, error } = await supabaseClient
+                    .from('registrations')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                // 按主题分组
+                const exportData = {
+                    themes: {},
+                    exportDate: new Date().toISOString(),
+                    total: data ? data.length : 0
+                };
+                
+                // 按主题分组
+                THEMES.forEach(theme => {
+                    const themeData = data ? data.filter(item => item.theme_id === theme.id) : [];
+                    exportData.themes[theme.id] = {
+                        title: theme.title,
+                        tag: theme.tag,
+                        participants: themeData.map(item => ({
+                            id: item.id,
+                            name: item.name,
+                            date: new Date(item.created_at).toLocaleString('zh-CN')
+                        }))
+                    };
+                });
+                
+                // 下载
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ai-lab-云端报名数据-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showMessage('数据已导出', 'success');
+                
+            } catch (error) {
+                console.error('导出数据失败:', error);
+                showMessage(`导出数据失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 刷新数据功能已移除（根据用户要求）
+
+        // 设置实时订阅
+        function setupRealtimeSubscription() {
+            if (!isConfigured || !supabaseClient) {
+                console.log('Supabase未配置，跳过实时订阅');
+                return;
+            }
+            
+            try {
+                // 订阅registrations表的实时变化
+                const subscription = supabaseClient
+                    .channel('registrations-changes')
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: '*', // INSERT, UPDATE, DELETE
+                            schema: 'public',
+                            table: 'registrations'
+                        },
+                        (payload) => {
+                            console.log('收到实时更新:', payload);
+                            // 立即重新加载数据
+                            loadData();
+                        }
+                    )
+                    .subscribe();
+                
+                console.log('实时订阅已建立');
+                
+                // 清理订阅（页面卸载时）
+                window.addEventListener('beforeunload', () => {
+                    supabaseClient.removeChannel(subscription);
+                });
+                
+            } catch (error) {
+                console.error('建立实时订阅失败:', error);
+            }
+        }
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 尝试加载配置
+            if (!loadConfig()) {
+                showMessage('请先配置 Supabase 连接信息', 'info');
+            }
+            
+            // 添加回车提交
+            document.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && e.target.type === 'text' && e.target.id.startsWith('name-')) {
+                    const themeId = e.target.id.split('-')[1];
+                    signup(parseInt(themeId));
+                }
+            });
+            
+            // 监听输入框变化，自动保存内容
+            document.addEventListener('input', function(e) {
+                if (e.target.type === 'text' && e.target.id.startsWith('name-')) {
+                    saveInputValues();
+                }
+            });
+            
+            // 自动刷新数据（每5秒，作为实时订阅的备用）
+            setInterval(() => {
+                if (isConfigured) {
+                    loadData();
+                }
+            }, 5000);
+        });
+    </script>
+</body>
+</html>
