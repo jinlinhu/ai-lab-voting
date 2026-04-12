@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 拓边实验室 - 云端投票报名系统（GitHub Pages版）</title>
+    <!-- 引入 Supabase 客户端库 -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #e2e8f0; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 40px; padding: 30px; background: rgba(30, 41, 59, 0.8); border-radius: 20px; border: 1px solid rgba(148, 163, 184, 0.2); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+        .header h1 { font-size: 2.5rem; background: linear-gradient(90deg, #60a5fa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
+        .header p { font-size: 1.1rem; color: #94a3b8; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+        .themes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-bottom: 40px; align-items: stretch; }
+        .theme-card { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; border: 2px solid rgba(148, 163, 184, 0.1); display: flex; flex-direction: column; height: 100%; position: relative; min-height: 580px; }
+        .theme-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #3b82f6, #8b5cf6); }
+        .theme-index { display: inline-block; background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 5px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; margin-bottom: 15px; }
+        .theme-title { font-size: 1.4rem; color: #f1f5f9; margin-bottom: 10px; line-height: 1.3; }
+        .theme-tag { display: inline-block; background: rgba(139, 92, 246, 0.2); color: #a78bfa; padding: 4px 10px; border-radius: 15px; font-size: 0.85rem; margin-bottom: 15px; }
+        .theme-desc { color: #94a3b8; font-size: 0.95rem; line-height: 1.7; margin-bottom: 20px; height: 7.2em; overflow: hidden; }
+        .capacity { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(148, 163, 184, 0.1); height: 50px; }
+        .capacity span { color: #60a5fa; font-weight: 600; }
+        .capacity-meter { width: 60%; height: 8px; background: rgba(148, 163, 184, 0.2); border-radius: 4px; overflow: hidden; }
+        .capacity-fill { height: 100%; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 4px; }
+        .signup-form { margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(148, 163, 184, 0.1); min-height: 140px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #cbd5e1; font-weight: 500; font-size: 0.9rem; }
+        .form-group input { width: 100%; padding: 10px 12px; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(148, 163, 184, 0.2); border-radius: 8px; color: #f1f5f9; font-size: 0.95rem; }
+        .signup-btn { width: 100%; padding: 12px; background: linear-gradient(90deg, #3b82f6, #2563eb); border: none; border-radius: 8px; color: white; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 10px; }
+        .signup-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #4b5563; }
+        .registrants-list { margin-top: 15px; max-height: 200px; overflow-y: auto; flex-grow: 1; min-height: 150px; }
+        .registrant-item { padding: 10px; border-bottom: 1px solid rgba(148, 163, 184, 0.1); color: #cbd5e1; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
+        .remove-btn { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; padding: 4px 10px; border-radius: 15px; font-size: 0.8rem; cursor: pointer; }
+        .empty-message { color: #94a3b8; font-style: italic; text-align: center; padding: 20px; font-size: 0.9rem; }
+        .full-badge { background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 8px 12px; border-radius: 8px; text-align: center; font-size: 0.9rem; font-weight: 600; margin-top: 15px; }
+        .control-panel { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; margin-top: 30px; text-align: center; }
+        .control-buttons { display: flex; gap: 15px; justify-content: center; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+        .btn-primary { background: linear-gradient(90deg, #3b82f6, #2563eb); color: white; }
+        .btn-secondary { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+        .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(148, 163, 184, 0.2); color: #94a3b8; font-size: 0.9rem; }
+        @media (max-width: 768px) { .header h1 { font-size: 2rem; } .themes-grid { grid-template-columns: 1fr; } .control-buttons { flex-direction: column; } }
+        
+        /* 消息提示 */
+        .message { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 8px; z-index: 1000; display: none; animation: slideDown 0.3s ease; }
+        .message.success { background: rgba(16, 185, 129, 0.9); color: white; }
+        .message.error { background: rgba(239, 68, 68, 0.9); color: white; }
+        .message.info { background: rgba(59, 130, 246, 0.9); color: white; }
+        @keyframes slideDown { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        
+        /* 配置面板 */
+        .config-panel { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; margin-bottom: 30px; border: 2px solid rgba(59, 130, 246, 0.3); display: none; }
+        .config-panel h3 { color: #60a5fa; margin-bottom: 15px; font-size: 1.3rem; }
+        .config-input { width: 100%; padding: 10px 12px; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(148, 163, 184, 0.2); border-radius: 8px; color: #f1f5f9; font-size: 0.95rem; margin-bottom: 15px; }
+        .config-btn { padding: 10px 20px; background: linear-gradient(90deg, #3b82f6, #2563eb); border: none; border-radius: 8px; color: white; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+        
+        /* 加载动画 */
+        .loader { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(148, 163, 184, 0.3); border-radius: 50%; border-top-color: #3b82f6; animation: spin 1s ease-in-out infinite; margin-right: 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* 状态指示器 */
+        .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+        .status-online { background-color: #10b981; }
+        .status-offline { background-color: #ef4444; }
+        
+        /* 固定位置区域 */
+        .card-top-section { flex: 0 0 auto; }
+        .card-middle-section { flex: 0 0 auto; margin-bottom: 20px; }
+        .card-bottom-section { flex: 0 0 auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI 拓边实验室 - 云端投票报名系统</h1>
+            <p>选择你感兴趣的研究主题进行报名，每个主题限5人参与。每人只能选择一个主题进行报名。</p>
+            <div style="margin-top: 15px; padding: 10px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; display: inline-block;">
+                <span class="status-indicator status-online"></span>
+                <small style="color: #34d399;">✅ 云端已连接 | 每人限选一个主题</small>
+            </div>
+        </div>
+
+        <!-- 配置面板（已预配置，默认隐藏） -->
+        <div class="config-panel" id="configPanel">
+            <h3>⚙️ Supabase 配置</h3>
+            <p style="color: #94a3b8; margin-bottom: 15px; font-size: 0.95rem;">
+                如需重新配置 Supabase 连接信息：
+            </p>
+            <div class="form-group">
+                <label for="supabaseUrl">Supabase URL</label>
+                <input type="text" id="supabaseUrl" class="config-input" placeholder="https://your-project.supabase.co">
+            </div>
+            <div class="form-group">
+                <label for="supabaseKey">Supabase Anon Key</label>
+                <input type="text" id="supabaseKey" class="config-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+            </div>
+            <button class="config-btn" onclick="saveConfig()">保存配置</button>
+        </div>
+
+        <div class="themes-grid" id="themesGrid">
+            <!-- 主题卡片将通过JavaScript动态生成 -->
+        </div>
+
+        <div class="control-panel">
+            <h3>📊 数据管理</h3>
+            <div class="control-buttons">
+                <button class="btn btn-primary" onclick="exportData()">导出数据</button>
+            </div>
+            <div id="total-stats" style="margin-top: 20px; color: #94a3b8; font-size: 0.9rem;">
+                总报名人数: <span id="total-count">0</span> / 20
+            </div>
+            <div style="margin-top: 15px; padding: 10px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border-left: 3px solid #10b981;">
+                <small style="color: #34d399;">✅ GitHub Pages版：国内直接访问，无需VPN</small>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>AI 拓边实验室 - 云端投票报名系统 | 基于 Supabase + GitHub Pages</p>
+            <p>© 2026 算法团队内部活动 | 数据实时同步到云端</p>
+        </div>
+    </div>
+
+    <script>
+        // 应用配置
+        const MAX_PARTICIPANTS = 5;
+        const THEMES = [
+            { id: 1, title: "云端识别", tag: "时空异常分析", desc: "利用用户上传的 GGA 信息，在云端识别导航欺骗与干扰，针对南京导航异常期间数据实现有效检测。" },
+            { id: 2, title: "多源感知", tag: "端侧采集", desc: "引入 IMU 与磁力计，完成基础质量筛查与可视化，实现手机 app 的传感器采集和结果展示。" },
+            { id: 3, title: "软件接收机", tag: "GPS 伪距跟踪", desc: "开发支持 GPS 伪距跟踪的软件接收机，实现可演示核心链路的软件接收机原型。" },
+            { id: 4, title: "研发管理", tag: "个人项目经理", desc: "开发个人项目经理助手工具，支持任务梳理、进展追踪和日常记录，提升个人研发效率。" }
+        ];
+
+        // Supabase 客户端
+        let supabaseClient = null;
+        let isConfigured = false;
+
+        // 显示消息
+        function showMessage(text, type = 'info') {
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            message.textContent = text;
+            message.style.display = 'block';
+            
+            document.body.appendChild(message);
+            
+            setTimeout(() => {
+                message.style.display = 'none';
+                message.remove();
+            }, 3000);
+        }
+
+        // 保存输入框内容
+        function saveInputValues() {
+            const inputs = document.querySelectorAll('input[id^="name-"]');
+            const inputValues = {};
+            inputs.forEach(input => {
+                if (input.value.trim()) {
+                    inputValues[input.id] = input.value;
+                }
+            });
+            sessionStorage.setItem('inputValues', JSON.stringify(inputValues));
+        }
+
+        // 恢复输入框内容
+        function restoreInputValues() {
+            const savedValues = JSON.parse(sessionStorage.getItem('inputValues') || '{}');
+            Object.keys(savedValues).forEach(inputId => {
+                const input = document.getElementById(inputId);
+                if (input && !input.value) {
+                    input.value = savedValues[inputId];
+                }
+            });
+        }
+
+        // 加载配置
+        function loadConfig() {
+            try {
+                // 首先检查本地存储是否有配置
+                let url = localStorage.getItem('supabaseUrl');
+                let key = localStorage.getItem('supabaseKey');
+                
+                // 如果没有本地配置，使用预配置的值
+                if (!url || !key) {
+                    url = 'https://mnxlsewwhczawwyjnexr.supabase.co';
+                    key = 'sb_publishable_82zAM1g-HhuDUIiYHytK_Q_q4CsUUnu';
+                    
+                    // 保存到本地存储，避免下次再配置
+                    localStorage.setItem('supabaseUrl', url);
+                    localStorage.setItem('supabaseKey', key);
+                }
+                
+                if (url && key) {
+                    // 初始化 Supabase 客户端
+                    supabaseClient = window.supabase.createClient(url, key);
+                    isConfigured = true;
+                    
+                    // 隐藏配置面板（已预配置，直接隐藏）
+                    document.getElementById('configPanel').style.display = 'none';
+                    
+                    // 加载数据
+                    loadData();
+                    
+                    // 设置实时订阅
+                    setupRe
