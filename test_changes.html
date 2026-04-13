@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>修改验证测试</title>
+</head>
+<body>
+    <h1>OpenClaw控制UI修改验证</h1>
+    
+    <h2>已完成的修改：</h2>
+    <ol>
+        <li><strong>✅ 移除了5秒自动刷新</strong> - 解决了输入框失焦问题</li>
+        <li><strong>✅ 添加了姓名校验功能</strong> - 只有GNSS算法研发部成员才能报名</li>
+        <li><strong>✅ 合法的姓名列表：</strong>
+            <ul>
+                <li>昌胜骐，陈华炎，陈玉林，成余刚，贺焱</li>
+                <li>胡金林，胡一帆，计国锋，蒋伟，孔超</li>
+                <li>刘健，刘煜，栾梦杰，闵于，钱建军</li>
+                <li>王昊俣，王省超，吴之祥，张文宇，周伟</li>
+            </ul>
+        </li>
+        <li><strong>✅ 添加了报名规则说明</strong> - 包含GNSS算法研发部成员限制</li>
+        <li><strong>✅ 添加了页面提示</strong> - "仅限GNSS算法研发部成员报名"</li>
+    </ol>
+    
+    <h2>技术细节：</h2>
+    <ul>
+        <li>移除了 <code>setInterval(() => { loadData(); }, 5000);</code> 代码</li>
+        <li>添加了 <code>VALID_NAMES</code> 数组包含20个合法姓名</li>
+        <li>在 <code>signup()</code> 函数中添加了姓名校验：<code>if (!VALID_NAMES.includes(name)) { showMessage('你不是GNSS算法研发部成员', 'error'); return; }</code></li>
+        <li>在页面头部添加了"仅限GNSS算法研发部成员报名"提示</li>
+        <li>添加了报名规则部分，包含5条规则</li>
+    </ul>
+    
+    <h2>效果：</h2>
+    <p>现在当用户输入不在名单中的姓名时，会显示错误消息："你不是GNSS算法研发部成员"</p>
+    <p>输入框不会再因为5秒刷新而失焦</p>
+    <p>页面会明确告知用户只有GNSS算法研发部成员才能报名</p>
+</body>
+</html>
