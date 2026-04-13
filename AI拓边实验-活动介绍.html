@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 拓边实验室</title>
+    <meta
+      name="description"
+      content="让算法团队用四个真实命题，亲手验证 AI 如何扩展研发边界。"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #071019;
+        --bg-soft: #0c1824;
+        --panel: rgba(8, 18, 31, 0.82);
+        --panel-strong: rgba(10, 22, 36, 0.94);
+        --line: rgba(116, 208, 255, 0.18);
+        --line-strong: rgba(116, 208, 255, 0.42);
+        --text: #eef5ff;
+        --muted: #a5b6cc;
+        --accent: #7af4ff;
+        --accent-strong: #44d5ff;
+        --accent-warm: #ff8e49;
+        --accent-warm-soft: rgba(255, 142, 73, 0.18);
+        --shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
+        --radius-xl: 32px;
+        --radius-lg: 24px;
+        --radius-md: 18px;
+        --space-2xs: clamp(0.35rem, 0.28rem + 0.22vw, 0.5rem);
+        --space-xs: clamp(0.6rem, 0.48rem + 0.35vw, 0.85rem);
+        --space-sm: clamp(0.9rem, 0.7rem + 0.6vw, 1.2rem);
+        --space-md: clamp(1.2rem, 0.95rem + 0.9vw, 1.8rem);
+        --space-lg: clamp(1.8rem, 1.2rem + 1.6vw, 2.9rem);
+        --space-xl: clamp(2.8rem, 2rem + 2.5vw, 5rem);
+        --space-2xl: clamp(4.5rem, 3rem + 4.5vw, 8rem);
+        --text-xs: clamp(0.72rem, 0.66rem + 0.18vw, 0.82rem);
+        --text-sm: clamp(0.92rem, 0.84rem + 0.2vw, 1rem);
+        --text-base: clamp(1rem, 0.95rem + 0.22vw, 1.12rem);
+        --text-lg: clamp(1.1rem, 1rem + 0.4vw, 1.35rem);
+        --text-xl: clamp(1.4rem, 1.18rem + 0.9vw, 2rem);
+        --text-2xl: clamp(2.2rem, 1.7rem + 2.1vw, 4.1rem);
+        --text-3xl: clamp(3.5rem, 2.4rem + 4.5vw, 7rem);
+        --max-width: 1240px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--text);
+        font-family: "Noto Serif SC", "Songti SC", serif;
+        background:
+          radial-gradient(circle at top left, rgba(68, 213, 255, 0.12), transparent 30%),
+          radial-gradient(circle at 85% 15%, rgba(255, 142, 73, 0.14), transparent 18%),
+          radial-gradient(circle at 50% 80%, rgba(122, 244, 255, 0.08), transparent 22%),
+          linear-gradient(180deg, #09111a 0%, #060b12 55%, #081018 100%);
+        overflow-x: hidden;
+      }
+
+      body::before,
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: -1;
+      }
+
+      body::before {
+        background-image:
+          linear-gradient(rgba(122, 244, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(122, 244, 255, 0.035) 1px, transparent 1px);
+        background-size: 80px 80px;
+        mask-image: radial-gradient(circle at center, black 40%, transparent 85%);
+      }
+
+      body::after {
+        opacity: 0.18;
+        background-image:
+          radial-gradient(circle, rgba(255, 255, 255, 0.18) 0.7px, transparent 0.8px);
+        background-size: 12px 12px;
+        mix-blend-mode: soft-light;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .shell {
+        width: min(calc(100% - 2rem), var(--max-width));
+        margin: 0 auto;
+      }
+
+      .eyebrow,
+      .micro-label,
+      .signal-label {
+        font-family: "Chakra Petch", sans-serif;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--accent);
+        font-size: var(--text-xs);
+      }
+
+      .eyebrow::before {
+        content: "";
+        width: 3.25rem;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--accent));
+      }
+
+      .hero {
+        position: relative;
+        padding: clamp(3.8rem, 2.8rem + 3.2vw, 6.6rem) 0 var(--space-lg);
+      }
+
+      .hero-grid {
+        display: block;
+      }
+
+      .hero-copy {
+        position: relative;
+        max-width: 58rem;
+        padding: var(--space-lg);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-xl);
+        background:
+          linear-gradient(180deg, rgba(12, 24, 36, 0.88), rgba(8, 16, 27, 0.92));
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .hero-copy::before {
+        content: "";
+        position: absolute;
+        inset: auto -12% -22% auto;
+        width: 20rem;
+        height: 20rem;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(122, 244, 255, 0.22), transparent 65%);
+      }
+
+      .hero-copy::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(rgba(122, 244, 255, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(122, 244, 255, 0.05) 1px, transparent 1px);
+        background-size: 90px 90px;
+        mask-image: radial-gradient(circle at 70% 38%, black 0, transparent 72%);
+        opacity: 0.7;
+        pointer-events: none;
+      }
+
+      .hero h1 {
+        margin: 1rem 0 0;
+        font-size: var(--text-3xl);
+        line-height: 0.94;
+        letter-spacing: -0.04em;
+      }
+
+      .hero-subtitle {
+        max-width: 20ch;
+        margin: 1.2rem 0 0;
+        font-size: var(--text-xl);
+        line-height: 1.25;
+        color: #d8e5f5;
+      }
+
+      .hero-lead {
+        max-width: 34rem;
+        margin: 1.35rem 0 0;
+        font-size: clamp(1.06rem, 0.98rem + 0.32vw, 1.26rem);
+        line-height: 1.7;
+        color: var(--muted);
+      }
+
+      .hero-note {
+        display: inline-flex;
+        gap: 0.8rem;
+        align-items: center;
+        margin-top: 1.7rem;
+        padding: 0.7rem 1rem;
+        border: 1px solid rgba(255, 142, 73, 0.32);
+        border-radius: 999px;
+        background: rgba(255, 142, 73, 0.08);
+        color: #ffe4d5;
+        font-size: var(--text-sm);
+      }
+
+      .hero-note::before {
+        content: "";
+        width: 0.55rem;
+        height: 0.55rem;
+        border-radius: 50%;
+        background: var(--accent-warm);
+        box-shadow: 0 0 14px rgba(255, 142, 73, 0.85);
+      }
+
+      section {
+        padding: clamp(2.2rem, 1.5rem + 2vw, 4rem) 0;
+      }
+
+      .section-frame {
+        position: relative;
+        padding: var(--space-lg);
+        border-radius: var(--radius-xl);
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(180deg, rgba(10, 22, 36, 0.9), rgba(7, 15, 25, 0.9));
+        box-shadow: var(--shadow);
+      }
+
+      .section-kicker {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.2rem;
+      }
+
+      .section-index {
+        color: rgba(122, 244, 255, 0.75);
+        font-size: var(--text-xs);
+      }
+
+      .section-title {
+        margin: 0.8rem 0 0;
+        font-size: var(--text-2xl);
+        line-height: 1.06;
+      }
+
+      .section-desc {
+        max-width: 38rem;
+        margin: 0.85rem 0 0;
+        color: var(--muted);
+        font-size: var(--text-base);
+        line-height: 1.72;
+      }
+
+      .motive-grid,
+      .goal-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--space-md);
+        margin-top: var(--space-lg);
+      }
+
+      .motive-card,
+      .goal-card,
+      .challenge-card,
+      .participation-bar,
+      .closing-panel {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .motive-card,
+      .goal-card {
+        padding: 1.35rem;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(122, 244, 255, 0.14);
+        background: rgba(7, 16, 27, 0.78);
+      }
+
+      .motive-card::before,
+      .goal-card::before,
+      .challenge-card::before,
+      .participation-bar::before,
+      .closing-panel::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto auto 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg, var(--accent), transparent 72%);
+        opacity: 0.8;
+      }
+
+      .motive-card strong,
+      .goal-card strong {
+        display: block;
+        margin-bottom: 0.6rem;
+        font-size: 1.08rem;
+      }
+
+      .motive-card p,
+      .goal-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.8;
+        font-size: var(--text-sm);
+      }
+
+      .goal-grid {
+        margin-top: var(--space-md);
+      }
+
+      .goal-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+      }
+
+      .goal-card .micro-label {
+        color: rgba(122, 244, 255, 0.7);
+        font-size: 0.72rem;
+      }
+
+      .goal-card h3,
+      .challenge-card h3 {
+        margin: 0.6rem 0 0;
+      }
+
+      .challenge-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-md);
+        margin-top: var(--space-lg);
+      }
+
+      .challenge-card {
+        container-type: inline-size;
+        padding: 1.45rem;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(122, 244, 255, 0.14);
+        background:
+          linear-gradient(180deg, rgba(8, 18, 31, 0.96), rgba(6, 14, 23, 0.9));
+        transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+      }
+
+      .challenge-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(122, 244, 255, 0.32);
+        box-shadow: 0 24px 44px rgba(0, 0, 0, 0.28);
+      }
+
+      .challenge-head {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.2rem;
+      }
+
+      .challenge-index {
+        min-width: 3rem;
+        font-family: "Chakra Petch", sans-serif;
+        font-size: 0.78rem;
+        color: rgba(122, 244, 255, 0.7);
+      }
+
+      .challenge-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin-top: 0.55rem;
+        padding: 0.45rem 0.7rem;
+        border-radius: 999px;
+        color: #d8f8ff;
+        font-size: 0.78rem;
+        background: rgba(68, 213, 255, 0.12);
+      }
+
+      .challenge-tag::before {
+        content: "";
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 12px currentColor;
+      }
+
+      .challenge-card dl {
+        margin: 0;
+        display: grid;
+        gap: 1rem;
+      }
+
+      .challenge-card dt {
+        margin-bottom: 0.35rem;
+        color: var(--accent);
+        font-size: 0.84rem;
+      }
+
+      .challenge-card dd {
+        margin: 0;
+        color: var(--muted);
+        font-size: var(--text-sm);
+        line-height: 1.8;
+      }
+
+      .challenge-card[data-accent="warm"] .challenge-tag {
+        background: var(--accent-warm-soft);
+        color: #ffd3bc;
+      }
+
+      .challenge-card[data-accent="warm"] dt {
+        color: #ffb283;
+      }
+
+      .rules-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: var(--space-md);
+        margin-top: var(--space-lg);
+      }
+
+      .rule-card {
+        position: relative;
+        padding: 1.35rem;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(122, 244, 255, 0.14);
+        background: rgba(7, 16, 27, 0.78);
+        overflow: hidden;
+      }
+
+      .rule-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto auto 0;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg, var(--accent-warm), transparent 75%);
+        opacity: 0.85;
+      }
+
+      .rule-card .micro-label {
+        color: rgba(255, 178, 131, 0.86);
+        font-size: 0.72rem;
+      }
+
+      .rule-card h3 {
+        margin: 0.6rem 0 0.75rem;
+        font-size: 1.12rem;
+      }
+
+      .rule-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.78;
+        font-size: var(--text-sm);
+      }
+
+      .score-formula {
+        margin-top: var(--space-md);
+        padding: 1.2rem 1.35rem;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(255, 142, 73, 0.18);
+        background: rgba(255, 142, 73, 0.08);
+      }
+
+      .score-formula strong {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #ffe1cf;
+        font-size: 1rem;
+      }
+
+      .score-formula p {
+        margin: 0;
+        color: #ffd9c2;
+        line-height: 1.75;
+      }
+
+      .participation-bar,
+      .closing-panel {
+        margin-top: var(--space-lg);
+        padding: 1.25rem 1.4rem;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(122, 244, 255, 0.14);
+        background: rgba(7, 16, 27, 0.76);
+      }
+
+      .participation-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1.5rem;
+      }
+
+      .participation-bar strong {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-size: 1rem;
+      }
+
+      .participation-bar p,
+      .closing-panel p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.8;
+      }
+
+      .participation-chip {
+        flex-shrink: 0;
+        padding: 0.75rem 1rem;
+        border-radius: 999px;
+        border: 1px solid rgba(122, 244, 255, 0.22);
+        color: #ddf8ff;
+        font-family: "Chakra Petch", sans-serif;
+        font-size: 0.83rem;
+        letter-spacing: 0.08em;
+      }
+
+      .closing-panel {
+        padding: var(--space-lg);
+        text-align: center;
+      }
+
+      .closing-panel h2 {
+        max-width: 24ch;
+        margin: 0 auto;
+        font-size: clamp(1.95rem, 1.45rem + 1.9vw, 3.3rem);
+        line-height: 1.22;
+      }
+
+      .closing-panel p {
+        max-width: 50rem;
+        margin: 1.1rem auto 0;
+        font-size: var(--text-base);
+      }
+
+      .reveal {
+        opacity: 0;
+        transform: translateY(22px);
+        transition: opacity 680ms ease, transform 680ms ease;
+      }
+
+      .reveal.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .delay-1 {
+        transition-delay: 100ms;
+      }
+
+      .delay-2 {
+        transition-delay: 180ms;
+      }
+
+      .delay-3 {
+        transition-delay: 260ms;
+      }
+
+      .delay-4 {
+        transition-delay: 340ms;
+      }
+
+      @container (max-width: 27rem) {
+        .challenge-head {
+          flex-direction: column;
+        }
+      }
+
+      @media (max-width: 1100px) {
+        .hero-grid,
+        .motive-grid,
+        .goal-grid,
+        .challenge-grid,
+        .rules-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 760px) {
+        body::before {
+          background-size: 56px 56px;
+        }
+
+        .shell {
+          width: min(calc(100% - 1rem), var(--max-width));
+        }
+
+        .hero {
+          padding-top: var(--space-xl);
+        }
+
+        .hero-copy,
+        .section-frame,
+        .closing-panel {
+          border-radius: 24px;
+        }
+
+        .participation-bar {
+          flex-direction: column;
+          align-items: start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <div class="shell hero-grid">
+          <div class="hero-copy reveal is-visible">
+            <span class="eyebrow">Internal Launch Narrative</span>
+            <h1>AI 拓边实验室</h1>
+            <p class="hero-subtitle">
+              让算法团队用四个真实命题，亲手验证 AI 如何扩展研发边界
+            </p>
+            <p class="hero-lead">
+              这不是一次 AI 工具体验，而是一次面向未来研发方式的内部预演。
+            </p>
+            <div class="hero-note">
+              从“问答工具”切换到“协作式研发搭档”
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="shell section-frame reveal">
+          <div class="section-kicker">
+            <div>
+              <span class="eyebrow">Why Now</span>
+              <h2 class="section-title">为什么现在做这件事</h2>
+            </div>
+            <span class="section-index micro-label">01 / Motivation</span>
+          </div>
+          <p class="section-desc">
+            AI 已经开始进入研发主流程，我们需要尽快验证它能否帮助团队真正推进复杂问题。
+          </p>
+
+          <div class="motive-grid">
+            <article class="motive-card reveal delay-1">
+              <strong>AI 正在进入主流程</strong>
+              <p>研发方式正在从工具辅助，走向协作式开发。</p>
+            </article>
+            <article class="motive-card reveal delay-2">
+              <strong>我们的题目足够真实</strong>
+              <p>四个命题都是真问题，适合检验 AI 的实际边界。</p>
+            </article>
+            <article class="motive-card reveal delay-3">
+              <strong>目标不是展示 prompt</strong>
+              <p>我们要验证的是新的研发工作流，而不是一次工具演示。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="shell section-frame reveal">
+          <div class="section-kicker">
+            <div>
+              <span class="eyebrow">Expected Impact</span>
+              <h2 class="section-title">这次活动想验证什么</h2>
+            </div>
+            <span class="section-index micro-label">02 / Outcomes</span>
+          </div>
+          <p class="section-desc">
+            我们想验证 AI 是否已经能帮助团队拓边、提速，并沉淀更稳定的研发方法。
+          </p>
+
+          <div class="goal-grid">
+            <article class="goal-card reveal delay-1">
+              <span class="micro-label">Capability Shift</span>
+              <div>
+                <h3>能力拓边</h3>
+                <p>把过去不容易开始的问题，先推进到可验证的原型阶段。</p>
+              </div>
+            </article>
+
+            <article class="goal-card reveal delay-2">
+              <span class="micro-label">Speed Validation</span>
+              <div>
+                <h3>提效验证</h3>
+                <p>验证 coding agent 能否明显缩短从想法到 demo 的路径。</p>
+              </div>
+            </article>
+
+            <article class="goal-card reveal delay-3">
+              <span class="micro-label">Method Capture</span>
+              <div>
+                <h3>方法沉淀</h3>
+                <p>沉淀团队自己的 AI 协作方式、记录方式和复盘方法。</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="shell section-frame reveal">
+          <div class="section-kicker">
+            <div>
+              <span class="eyebrow">Challenge Map</span>
+              <h2 class="section-title">四个命题，不同方向，同一个目标</h2>
+            </div>
+            <span class="section-index micro-label">03 / Four Signals</span>
+          </div>
+          <p class="section-desc">
+            这四个题目覆盖从云端分析、端侧感知到底层实现和个人研发管理的不同能力象限。它们不是并列的任务清单，而是一张用来检验团队与 AI 协作深度的能力地图。
+          </p>
+
+          <div class="challenge-grid">
+            <article class="challenge-card reveal delay-1" data-accent="cool">
+              <div class="challenge-head">
+                <div>
+                  <span class="challenge-index">Signal 01</span>
+                  <h3>云端识别</h3>
+                </div>
+                <span class="challenge-tag">时空异常分析</span>
+              </div>
+              <dl>
+                <div>
+                  <dt>真实问题</dt>
+                  <dd>
+                    如何利用用户上传的 GGA 信息，在云端识别导航欺骗与干扰，并针对南京导航异常期间数据实现有效检测。
+                  </dd>
+                </div>
+                <div>
+                  <dt>原型目标</dt>
+                  <dd>
+                    形成一个可运行的算法 demo，对异常时段数据给出可解释的识别结果。
+                  </dd>
+                </div>
+                <div>
+                  <dt>锻炼能力</dt>
+                  <dd>时空异常分析、数据建模、原型验证、AI 辅助算法开发。</dd>
+                </div>
+              </dl>
+            </article>
+
+            <article class="challenge-card reveal delay-2" data-accent="warm">
+              <div class="challenge-head">
+                <div>
+                  <span class="challenge-index">Signal 02</span>
+                  <h3>多源感知</h3>
+                </div>
+                <span class="challenge-tag">端侧采集</span>
+              </div>
+              <dl>
+                <div>
+                  <dt>真实问题</dt>
+                  <dd>
+                    当前手机多源融合只用了 GNSS，如何进一步引入 IMU 与磁力计，并完成基础质量筛查与可视化。
+                  </dd>
+                </div>
+                <div>
+                  <dt>原型目标</dt>
+                  <dd>
+                    实现一个手机 app，完成传感器采集、初步质量判断和结果展示。
+                  </dd>
+                </div>
+                <div>
+                  <dt>锻炼能力</dt>
+                  <dd>端侧采集、传感器理解、数据清洗、可视化表达、AI 辅助应用开发。</dd>
+                </div>
+              </dl>
+            </article>
+
+            <article class="challenge-card reveal delay-3" data-accent="cool">
+              <div class="challenge-head">
+                <div>
+                  <span class="challenge-index">Signal 03</span>
+                  <h3>软件接收机</h3>
+                </div>
+                <span class="challenge-tag">GPS 伪距跟踪</span>
+              </div>
+              <dl>
+                <div>
+                  <dt>真实问题</dt>
+                  <dd>
+                    如何在不直接参考开源实现的前提下，开发支持 GPS 伪距跟踪的软件接收机。
+                  </dd>
+                </div>
+                <div>
+                  <dt>原型目标</dt>
+                  <dd>
+                    实现一个可演示核心链路的软件接收机原型，并重点记录与 AI 的协作开发过程。
+                  </dd>
+                </div>
+                <div>
+                  <dt>锻炼能力</dt>
+                  <dd>底层算法实现、复杂系统拆解、工程推导、AI 协同编码。</dd>
+                </div>
+              </dl>
+            </article>
+
+            <article class="challenge-card reveal delay-4" data-accent="warm">
+              <div class="challenge-head">
+                <div>
+                  <span class="challenge-index">Signal 04</span>
+                  <h3>研发管理</h3>
+                </div>
+                <span class="challenge-tag">个人项目经理</span>
+              </div>
+              <dl>
+                <div>
+                  <dt>真实问题</dt>
+                  <dd>
+                    如何开发一个工具，帮助个人持续追踪近期研发事项、进展状态和已完成工作。
+                  </dd>
+                </div>
+                <div>
+                  <dt>原型目标</dt>
+                  <dd>
+                    实现一个轻量个人项目经理助手，支持任务梳理、进展追踪和日常记录。
+                  </dd>
+                </div>
+                <div>
+                  <dt>锻炼能力</dt>
+                  <dd>工具产品化、流程抽象、个人效率提升、AI 辅助工作管理。</dd>
+                </div>
+              </dl>
+            </article>
+          </div>
+
+          <div class="participation-bar reveal delay-2">
+            <div>
+              <strong>轻量参与说明</strong>
+              <p>
+                鼓励全过程使用 coding agent，最终以 demo、关键结论和过程记录呈现成果。
+              </p>
+            </div>
+            <span class="participation-chip">Demo + Conclusion + Process Log</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="shell section-frame reveal">
+          <div class="section-kicker">
+            <div>
+              <span class="eyebrow">Sharing & Scoring</span>
+              <h2 class="section-title">后续分享与考核规则</h2>
+            </div>
+            <span class="section-index micro-label">04 / Weekly Review</span>
+          </div>
+          <p class="section-desc">
+            自 2026 年 4 月 23 日起，活动成果进入周分享与评分阶段，最终成绩由现场集体评分与分享顺序系数共同决定。
+          </p>
+
+          <div class="rules-grid">
+            <article class="rule-card reveal delay-1">
+              <span class="micro-label">Share Window</span>
+              <h3>分享安排</h3>
+              <p>自 4 月 23 日开始，每周四 18:00 至 19:00 为固定分享时间，每场安排 3 位同学，每人限时 20 分钟。</p>
+            </article>
+
+            <article class="rule-card reveal delay-2">
+              <span class="micro-label">Sign-up Deadline</span>
+              <h3>报名截止</h3>
+              <p>每场分享报名截止到分享前一天 18:00，逾期自动顺延到下一轮安排。</p>
+            </article>
+
+            <article class="rule-card reveal delay-3">
+              <span class="micro-label">Coefficient</span>
+              <h3>系数规则</h3>
+              <p>第一周系数分为 1.00，第二周 0.98，第三周 0.96，以此类推，每延后一周递减 0.02。</p>
+            </article>
+
+            <article class="rule-card reveal delay-4">
+              <span class="micro-label">Reward</span>
+              <h3>奖励机制</h3>
+              <p>最终总分排名前三的同学，每人奖励 500 元，用于鼓励高质量分享和高完成度产出。</p>
+            </article>
+          </div>
+
+          <div class="score-formula reveal delay-2">
+            <strong>计分方式</strong>
+            <p>总分 = 大家集体评分的平均分 × 系数分。分享越早，系数越高；最终排名以总分为准。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="shell closing-panel reveal">
+          <span class="eyebrow">Closing Message</span>
+          <h2>我们希望看到的不只是结果，更是你如何和 AI 一起把问题推到更远。</h2>
+          <p>
+            这场活动的意义，不在于谁更会用工具，而在于我们能否共同定义下一代算法研发方式。
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("is-visible");
+            }
+          }
+        },
+        { threshold: 0.16 }
+      );
+
+      for (const node of document.querySelectorAll(".reveal:not(.is-visible)")) {
+        observer.observe(node);
+      }
+    </script>
+  </body>
+</html>
