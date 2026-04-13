@@ -81,10 +81,6 @@
         <div class="header">
             <h1>AI 拓边实验室 - 云端投票报名系统</h1>
             <p>选择你感兴趣的研究主题进行报名，每个主题限5人参与。每人只能选择一个主题进行报名。</p>
-            <div style="margin-top: 15px; padding: 10px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; display: inline-block;">
-                <span class="status-indicator status-online"></span>
-                <small style="color: #34d399;">✅ 云端已连接</small>
-            </div>
         </div>
 
         <!-- 配置面板（已预配置，默认隐藏） -->
@@ -103,6 +99,8 @@
             </div>
             <button class="config-btn" onclick="saveConfig()">保存配置</button>
         </div>
+
+
 
         <div class="themes-grid" id="themesGrid">
             <!-- 主题卡片将通过JavaScript动态生成 -->
@@ -133,6 +131,14 @@
             { id: 2, title: "多源感知", tag: "端侧采集", desc: "引入 IMU 与磁力计，完成基础质量筛查与可视化，实现手机 app 的传感器采集和结果展示。" },
             { id: 3, title: "软件接收机", tag: "GPS 伪距跟踪", desc: "开发支持 GPS 伪距跟踪的软件接收机，实现可演示核心链路的软件接收机原型。" },
             { id: 4, title: "研发管理", tag: "个人项目经理", desc: "开发个人项目经理助手工具，支持任务梳理、进展追踪和日常记录，提升个人研发效率。" }
+        ];
+        
+        // 合法的GNSS算法研发部成员姓名列表
+        const VALID_NAMES = [
+            "昌胜骐", "陈华炎", "陈玉林", "成余刚", "贺焱", 
+            "胡金林", "胡一帆", "计国锋", "蒋伟", "孔超", 
+            "刘健", "刘煜", "栾梦杰", "闵于", "钱建军", 
+            "王昊俣", "王省超", "吴之祥", "张文宇", "周伟"
         ];
 
         // Supabase 客户端（使用不同的变量名避免冲突）
@@ -289,6 +295,12 @@
             
             if (name.length > 20) {
                 showMessage('姓名不能超过20个字符', 'error');
+                return;
+            }
+            
+            // 校验姓名是否为GNSS算法研发部成员
+            if (!VALID_NAMES.includes(name)) {
+                showMessage('你不是GNSS算法研发部成员', 'error');
                 return;
             }
             
@@ -654,12 +666,8 @@
                 }
             });
             
-            // 自动刷新数据（每5秒，作为实时订阅的备用）
-            setInterval(() => {
-                if (isConfigured) {
-                    loadData();
-                }
-            }, 5000);
+            // 移除自动刷新数据（解决输入框失焦问题）
+            // 实时订阅已足够，不需要定时刷新
         });
     </script>
 </body>
