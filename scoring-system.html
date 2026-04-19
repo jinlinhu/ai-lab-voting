@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 拓边实验室 - 讲演打分系统</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #e2e8f0; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 40px; padding: 30px; background: rgba(30, 41, 59, 0.8); border-radius: 20px; border: 1px solid rgba(148, 163, 184, 0.2); }
+        .header h1 { font-size: 2.5rem; background: linear-gradient(90deg, #60a5fa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
+        .nav-links { margin-top: 20px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+        .nav-btn { padding: 10px 20px; background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; color: #60a5fa; text-decoration: none; font-weight: 600; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 20px; text-align: center; }
+        .stat-value { font-size: 2rem; font-weight: 700; background: linear-gradient(90deg, #60a5fa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .scoring-section, .rankings-section { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; margin-bottom: 30px; }
+        
+        .presentation-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+        .presentation-card { background: rgba(15, 23, 42, 0.8); border-radius: 10px; padding: 20px; border: 1px solid rgba(148, 163, 184, 0.1); }
+        .presentation-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .presenter-name { font-size: 1.2rem; font-weight: 600; color: #f1f5f9; }
+        .presentation-date { color: #94a3b8; font-size: 0.9rem; }
+        
+        .rating-stars { display: flex; gap: 5px; margin: 15px 0; }
+        .star { font-size: 1.5rem; cursor: pointer; color: #4b5563; }
+        .star.active { color: #f59e0b; }
+        
+        .score-input { width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(148, 163, 184, 0.2); border-radius: 8px; color: #f1f5f9; margin-top: 10px; }
+        .submit-btn { width: 100%; padding: 12px; background: linear-gradient(90deg, #3b82f6, #2563eb); border: none; border-radius: 8px; color: white; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 15px; }
+        
+        .rankings-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .rankings-table th, .rankings-table td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(148, 163, 184, 0.1); }
+        .rankings-table th { color: #60a5fa; font-weight: 600; }
+        .rankings-table tr:hover { background: rgba(96, 165, 250, 0.05); }
+        
+        .rank-badge { display: inline-block; padding: 4px 10px; border-radius: 15px; font-size: 0.85rem; font-weight: 600; }
+        .rank-1 { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+        .rank-2 { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+        .rank-3 { background: rgba(180, 83, 9, 0.2); color: #b45309; }
+        
+        .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(148, 163, 184, 0.2); color: #94a3b8; }
+        
+        .message { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 8px; z-index: 1000; display: none; }
+        .message.success { background: rgba(16, 185, 129, 0.9); color: white; }
+        .message.error { background: rgba(239, 68, 68, 0.9); color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI 拓边实验室 - 讲演打分系统</h1>
+            <p>对每周的讲演进行打分评价，每人需对除自己外的讲演者进行打分（1-10分）。</p>
+            <div class="nav-links">
+                <a href="index.html" class="nav-btn">🏠 返回报名系统</a>
+                <a href="presentation-booking-simple.html" class="nav-btn">📅 进入预约系统</a>
+                <a href="AI Experiment-Activity Introduction.html" target="_blank" class="nav-btn">📖 活动介绍</a>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-value" id="total-presentations">0</div><div>已进行讲演</div></div>
+            <div class="stat-card"><div class="stat-value" id="total-scores">0</div><div>已提交评分</div></div>
+            <div class="stat-card"><div class="stat-value" id="avg-score">0.0</div><div>平均分</div></div>
+            <div class="stat-card"><div class="stat-value" id="scored-by-me">0</div><div>我已评分</div></div>
+        </div>
+
+        <div class="scoring-section">
+            <h3>⭐ 为讲演者打分</h3>
+            <div class="form-group">
+                <label>评分人姓名</label>
+                <input type="text" id="scorer-name" class="score-input" placeholder="请输入您的姓名">
+            </div>
+            <div id="presentations-container" class="presentation-list">
+                <!-- 讲演列表将通过JavaScript动态生成 -->
+            </div>
+        </div>
+
+        <div class="rankings-section">
+            <h3>🏆 评分排行榜</h3>
+            <table class="rankings-table" id="rankings-table">
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>讲演者</th>
+                        <th>平均分</th>
+                        <th>评分人数</th>
+                        <th>总分</th>
+                        <th>讲演次数</th>
+                    </tr>
+                </thead>
+                <tbody id="rankings-body">
+                    <!-- 排行榜数据将通过JavaScript动态生成 -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p>AI 拓边实验室 - 讲演打分系统 | 基于 Supabase + GitHub Pages</p>
+            <p>© 2026 算法团队内部活动</p>
+        </div>
+    </div>
+
+    <script>
+        const VALID_NAMES = ["昌胜骐","陈华炎","陈玉林","成余刚","贺焱","胡金林","胡一帆","计国锋","蒋伟","孔超","刘健","刘煜","栾梦杰","闵于","钱建军","王昊俣","王省超","吴之祥","张文宇","周伟"];
+        
+        let supabaseClient = null;
+        
+        function showMessage(text, type = 'info') {
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            msg.textContent = text;
+            msg.style.display = 'block';
+            document.body.appendChild(msg);
+            setTimeout(() => msg.remove(), 3000);
+        }
+        
+        function loadConfig() {
+            try {
+                let url = localStorage.getItem('supabaseUrl') || 'https://mnxlsewwhczawwyjnexr.supabase.co';
+                let key = localStorage.getItem('supabaseKey') || 'sb_publishable_82zAM1g-HhuDUIiYHytK_Q_q4CsUUnu';
+                supabaseClient = window.supabase.createClient(url, key);
+                loadData();
+                return true;
+            } catch (error) {
+                showMessage('配置加载失败', 'error');
+                return false;
+            }
+        }
+        
+        async function loadData() {
+            if (!supabaseClient) return;
+            try {
+                const { data: bookings } = await supabaseClient.from('presentation_bookings').select('*');
+                const { data: scores } = await supabaseClient.from('presentation_scores').select('*');
+                updatePresentations(bookings || [], scores || []);
+                updateRankings(bookings || [], scores || []);
+                updateStats(bookings || [], scores || []);
+            } catch (error) {
+                console.error('加载失败:', error);
+            }
+        }
+        
+        function updatePresentations(bookings, scores) {
+            const container = document.getElementById('presentations-container');
+            const scorer = document.getElementById('scorer-name').value.trim();
+            
+            if (!scorer || !VALID_NAMES.includes(scorer)) {
+                container.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:40px;">请输入有效的评分人姓名</div>';
+                return;
+            }
+            
+            const scoredIds = scores.filter(s => s.scorer_name === scorer).map(s => s.presentation_id);
+            const presentations = bookings.filter(b => !scoredIds.includes(b.id) && b.participant_name !== scorer);
+            
+            if (presentations.length === 0) {
+                container.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:40px;">暂无需要评分的讲演</div>';
+                return;
+            }
+            
+            container.innerHTML = presentations.map(booking => {
+                const week = getWeekLabel(booking.week_id);
+                return `
+                    <div class="presentation-card">
+                        <div class="presentation-header">
+                            <div class="presenter-name">${booking.participant_name}</div>
+                            <div class="presentation-date">${week} - 第${booking.slot_number}位</div>
+                        </div>
+                        <div>请评分 (1-10分):</div>
+                        <div class="rating-stars" id="stars-${booking.id}">
+                            ${[1,2,3,4,5,6,7,8,9,10].map(num => 
+                                `<span class="star" onclick="setScore(${booking.id}, ${num})">★</span>`
+                            ).join('')}
+                        </div>
+                        <input type="number" id="score-input-${booking.id}" class="score-input" placeholder="或直接输入分数 (1-10)" min="1" max="10" onchange="updateStars(${booking.id}, this.value)">
+                        <textarea id="comment-${booking.id}" class="score-input" placeholder="评价意见 (可选)" rows="2"></textarea>
+                        <button class="submit-btn" onclick="submitScore(${booking.id})">提交评分</button>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function getWeekLabel(weekId) {
+            const weeks = {
+                1: '第1周 (4月23日)', 2: '第2周 (4月30日)', 3: '第3周 (5月7日)',
+                4: '第4周 (5月14日)', 5: '第5周 (5月21日)', 6: '第6周 (5月28日)',
+                7: '第7周 (6月4日)'
+            };
+            return weeks[weekId] || `第${weekId}周`;
+        }
+        
+        function setScore(presentationId, score) {
+            const input = document.getElementById(`score-input-${presentationId}`);
+            input.value = score;
+            updateStars(presentationId, score);
+        }
+        
+        function updateStars(presentationId, score) {
+            const stars = document.getElementById(`stars-${presentationId}`).children;
+            const numScore = parseInt(score) || 0;
+            for (let i = 0; i < stars.length; i++) {
+                stars[i].classList.toggle('active', i < numScore);
+            }
+        }
+        
+        async function submitScore(presentationId) {
+            const scorer = document.getElementById('scorer-name').value.trim();
+            const score = parseInt(document.getElementById(`score-input-${presentationId}`).value);
+            const comment = document.getElementById(`comment-${presentationId}`).value.trim();
+            
+            if (!scorer || !VALID_NAMES.includes(scorer)) {
+                showMessage('请输入有效的姓名', 'error'); return;
+            }
+            if (!score || score < 1 || score > 10) {
+                showMessage('请输入1-10分', 'error'); return;
+            }
+            
+            try {
+                const { data: existing } = await supabaseClient.from('presentation_scores')
+                    .select('id')
+                    .eq('presentation_id', presentationId)
+                    .eq('scorer_name', scorer);
+                
+                if (existing.length > 0) {
+                    showMessage('已评过分', 'error'); return;
+                }
+                
+                await supabaseClient.from('presentation_scores').insert([{
+                    presentation_id: presentationId,
+                    scorer_name: scorer,
+                    score: score,
+                    comment: comment,
+                    scored_at: new Date().toISOString()
+                }]);
+                
+                showMessage('评分成功!', 'success');
+                loadData();
+                
+            } catch (error) {
+                showMessage('评分失败: ' + error.message, 'error');
+            }
+        }
+        
+        function updateRankings(bookings, scores) {
+            const presenterStats = {};
+            bookings.forEach(booking => {
+                const presScores = scores.filter(s => s.presentation_id === booking.id);
+                const total = presScores.reduce((sum, s) => sum + s.score, 0);
+                
+                if (!presenterStats[booking.participant_name]) {
+                    presenterStats[booking.participant_name] = { totalScore: 0, totalCount: 0, presCount: 0 };
+                }
+                presenterStats[booking.participant_name].totalScore += total;
+                presenterStats[booking.participant_name].totalCount += presScores.length;
+                presenterStats[booking.participant_name].presCount++;
+            });
+            
+            const rankings = Object.keys(presenterStats).map(name => {
+                const stats = presenterStats[name];
+                const avgScore = stats.totalCount ? (stats.totalScore / stats.totalCount).toFixed(1) : '0.0';
+                return {
+                    name,
+                    avgScore: parseFloat(avgScore),
+                    totalScore: stats.totalScore,
+                    scoreCount: stats.totalCount,
+                    presCount: stats.presCount
+                };
+            }).sort((a, b) => b.avgScore - a.avgScore);
+            
+            const tbody = document.getElementById('rankings-body');
+            tbody.innerHTML = rankings.map((item, index) => {
+                const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
+                const rankBadge = rankClass ? `<span class="rank-badge ${rankClass}">第${index + 1}名</span>` : `第${index + 1}名`;
+                return `
+                    <tr>
+                        <td>${rankBadge}</td>
+                        <td><strong>${item.name}</strong></td>
+                        <td><strong style="color:#f59e0b;font-size:1.2rem;">${item.avgScore}</strong></td>
+                        <td>${
