@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw 完整配置指南</title>
+  <style>
+    :root {
+      --bg: #071019; --bg-soft: #0c1824;
+      --panel: rgba(8,18,31,0.82);
+      --line: rgba(116,208,255,0.18);
+      --text: #eef5ff; --muted: #a5b6cc;
+      --accent: #7af4ff; --accent-warm: #ff8e49;
+      --green: #4cdf8b; --yellow: #ffd93d;
+      --shadow: 0 20px 50px rgba(0,0,0,0.35);
+      --radius-xl: 32px; --radius-lg: 20px; --radius-md: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Noto Serif SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.8;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    h1 { font-size: 2rem; margin: 2rem 0 0.5rem; }
+    h2 {
+      font-size: 1.4rem; margin: 2.5rem 0 0.8rem;
+      padding-left: 0.6rem; border-left: 3px solid var(--accent);
+    }
+    h3 { font-size: 1.1rem; margin: 1.8rem 0 0.4rem; color: var(--accent); }
+    h4 { font-size: 1rem; margin: 1.2rem 0 0.3rem; }
+    p { margin-bottom: 0.8rem; color: var(--muted); }
+    ul, ol { padding-left: 1.4rem; margin-bottom: 0.8rem; }
+    li { color: var(--muted); margin-bottom: 0.3rem; }
+    strong { color: var(--text); }
+    code {
+      display: inline-block;
+      padding: 0.1rem 0.45rem;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.4);
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 0.85em;
+      color: var(--accent);
+    }
+    pre {
+      margin: 0.6rem 0 1rem;
+      padding: 0.8rem 1rem;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.45);
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 0.85em;
+      color: var(--accent);
+      overflow-x: auto;
+      line-height: 1.7;
+    }
+    .step-card, .note-box, .tip-box, .warn-box {
+      margin: 0.8rem 0 1.2rem;
+      padding: 1rem 1.2rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line);
+      background: rgba(7,16,27,0.7);
+      position: relative;
+      overflow: hidden;
+    }
+    .step-card::before, .note-box::before, .tip-box::before, .warn-box::before {
+      content: ""; position: absolute; inset: 0 auto auto 0;
+      width: 100%; height: 3px; opacity: 0.8;
+    }
+    .step-card::before { background: linear-gradient(90deg, var(--accent), transparent 72%); }
+    .note-box::before { background: linear-gradient(90deg, var(--yellow), transparent 72%); }
+    .tip-box::before { background: linear-gradient(90deg, var(--green), transparent 72%); }
+    .warn-box::before { background: linear-gradient(90deg, var(--accent-warm), transparent 72%); }
+    .step-card p, .note-box p, .tip-box p, .warn-box p { margin-bottom: 0.4rem; }
+    .step-card ul, .note-box ul, .tip-box ul, .warn-box ul { margin-bottom: 0.2rem; }
+    .num-badge {
+      display: inline-block;
+      min-width: 1.8rem; height: 1.8rem;
+      line-height: 1.8rem; text-align: center;
+      border-radius: 50%;
+      background: rgba(122,244,255,0.12);
+      color: var(--accent);
+      font-weight: bold;
+      font-size: 0.85rem;
+      margin-right: 0.5rem;
+    }
+    hr { border: none; border-top: 1px solid var(--line); margin: 2rem 0; }
+    @media (max-width: 600px) {
+      .wrap { padding: 1rem 1rem 3rem; }
+      h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>OpenClaw 完整配置指南</h1>
+<p style="margin-bottom:2rem;">安装流程 · 飞书接入 · 开机自启动 · DeepSeek API 配置</p>
+
+<!-- ===== 1. 安装 OpenClaw ===== -->
+<h2>一、安装 OpenClaw</h2>
+
+<div class="step-card">
+  <p><span class="num-badge">1</span> <strong>安装 Node.js</strong></p>
+  <p>访问 <a href="https://nodejs.org" style="color:var(--accent);">nodejs.org</a> 下载 LTS 版本（如 v22+），Windows 用户下载 .msi 安装包，一路默认安装即可。</p>
+  <p>安装完成后打开终端（Win+R → 输入 <code>cmd</code> 或 <code>powershell</code>），验证安装：</p>
+  <pre>node --version<br>npm --version</pre>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">2</span> <strong>全局安装 OpenClaw</strong></p>
+  <p>在终端中执行：</p>
+  <pre>npm install -g openclaw</pre>
+  <p>等待安装完成。如果权限不足（Linux/Mac 可能需要 <code>sudo</code>），Windows 用户请以管理员身份运行终端。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">3</span> <strong>启动网关服务</strong></p>
+  <p>安装完成后，运行以下命令启动 OpenClaw 网关：</p>
+  <pre>openclaw gateway start</pre>
+  <p>首次运行会自动打开配置页面（默认地址 <code>http://localhost:18789</code>）。浏览器打开该地址即可进入 OpenClaw 管理控制台。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">4</span> <strong>验证运行状态</strong></p>
+  <p>在控制台页面中可以看到网关运行状态、日志信息。也可以回到终端执行：</p>
+  <pre>openclaw gateway status</pre>
+  <p>如果显示 <code>running</code> 表示安装成功。</p>
+</div>
+
+<div class="tip-box">
+  <p><strong>常见问题</strong></p>
+  <ul>
+    <li>端口被占用？启动时指定端口：<code>openclaw gateway start --port 18790</code></li>
+    <li>版本升级：<code>npm update -g openclaw</code></li>
+    <li>卸载：<code>npm uninstall -g openclaw</code></li>
+  </ul>
+</div>
+
+<hr>
+
+<!-- ===== 2. 飞书配置 ===== -->
+<h2>二、飞书机器人接入</h2>
+
+<h3>2.1 创建飞书应用</h3>
+
+<div class="step-card">
+  <p><span class="num-badge">1</span> <strong>打开飞书开放平台</strong></p>
+  <p>访问 <a href="https://open.feishu.cn" style="color:var(--accent);">open.feishu.cn</a>，使用飞书账号登录。</p>
+  <p>点击右上角「开发者后台」→ 进入「创建应用」→ 选择「企业自建应用」。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">2</span> <strong>填写应用信息</strong></p>
+  <p>输入应用名称（如 "OpenClaw Agent"）、描述，上传应用图标，点击「创建」。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">3</span> <strong>获取凭证信息</strong></p>
+  <p>创建完成后，进入应用详情页 → 左侧菜单「凭证与基础信息」。</p>
+  <p>这里你会看到两个关键信息：</p>
+  <ul>
+    <li><strong>App ID</strong>（应用 ID）</li>
+    <li><strong>App Secret</strong>（应用密钥）</li>
+  </ul>
+  <p>复制并保存好这两项，一会要用。</p>
+</div>
+
+<h3>2.2 配置机器人能力</h3>
+
+<div class="step-card">
+  <p><span class="num-badge">1</span> <strong>开启机器人能力</strong></p>
+  <p>左侧菜单 → 「添加应用能力」→ 「机器人」→ 开启开关。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">2</span> <strong>配置事件订阅</strong></p>
+  <p>左侧菜单 → 「事件与回调」→ 「事件配置」。</p>
+  <p>添加以下事件：</p>
+  <ul>
+    <li><code>im.message.receive_v1</code>（接收消息事件）</li>
+  </ul>
+  <p>在「请求地址配置」中，填入 OpenClaw 提供的回调地址。Agent 启动后控制台会显示该地址。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">3</span> <strong>配置权限</strong></p>
+  <p>左侧菜单 → 「权限管理」→ 添加以下权限：</p>
+  <ul>
+    <li><code>im:message</code>（消息读写权限）</li>
+    <li><code>im:chat</code>（群聊信息权限）</li>
+    <li><code>contact:user.base</code>（用户基本信息）</li>
+  </ul>
+</div>
+
+<h3>2.3 在 OpenClaw 中完成绑定</h3>
+
+<div class="step-card">
+  <p><span class="num-badge">1</span> <strong>进入 OpenClaw 渠道配置</strong></p>
+  <p>在 OpenClaw 管理控制台中，找到「渠道/Channel」配置页，选择「飞书 / Feishu」。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">2</span> <strong>填入凭证</strong></p>
+  <p>将刚才获取的 <code>App ID</code> 和 <code>App Secret</code> 填入对应字段，保存配置。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">3</span> <strong>发布应用</strong></p>
+  <p>回到飞书开放平台 → 「版本管理与发布」→ 创建新版本 → 填写版本号、更新说明 → 「申请发布」。审核通过后应用即正式可用。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">4</span> <strong>添加机器人到群聊</strong></p>
+  <p>在飞书中创建或打开一个群聊 → 群设置 → 添加机器人 → 搜索你的应用名 → 添加。</p>
+  <p>现在你可以在群聊中 @机器人 发送消息，测试是否正常响应。</p>
+</div>
+
+<div class="tip-box">
+  <p><strong>测试技巧</strong></p>
+  <p>添加机器人后，发送一条消息如「你好」，机器人应该自动回复。如果无响应，检查 OpenClaw 日志和飞书事件回调配置。</p>
+</div>
+
+<hr>
+
+<!-- ===== 3. 开机自启动 ===== -->
+<h2>三、开机自动启动配置</h2>
+<p>方案：使用 Windows「启动」文件夹创建快捷方式，简单可靠，无需管理员权限。</p>
+
+<div class="step-card">
+  <p><span class="num-badge">1</span> <strong>打开启动文件夹</strong></p>
+  <p>按 <code>Win + R</code> 打开运行对话框，输入：</p>
+  <pre>shell:startup</pre>
+  <p>点击确定，系统会自动打开「启动」文件夹。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">2</span> <strong>创建快捷方式</strong></p>
+  <p>在打开的文件夹中，右键 → 新建 → 快捷方式。</p>
+  <p>位置填写（注意替换你的实际用户名）：</p>
+  <pre>C:\Windows\System32\cmd.exe /c "cd /d C:\Users\86132 && openclaw gateway run --port 18789 --daemon"</pre>
+  <p>名称填写：<code>OpenClaw Gateway</code></p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">3</span> <strong>设置最小化运行</strong></p>
+  <p>右键刚创建的快捷方式 → 属性 → 运行方式 → 选择「最小化」。</p>
+  <p>这样每次登录 Windows 时，OpenClaw 网关会在后台自动启动（最小化窗口），不干扰桌面操作。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">4</span> <strong>测试验证</strong></p>
+  <p>重启电脑 → 登录后检查 OpenClaw 是否自动运行：</p>
+  <ul>
+    <li>任务管理器中是否有 <code>node.exe</code> 进程运行（OpenClaw 网关进程）</li>
+    <li>浏览器访问 <code>http://localhost:18789</code> 能否打开控制台</li>
+    <li>飞书发送消息给机器人看是否有响应</li>
+  </ul>
+</div>
+
+<div class="warn-box">
+  <p><strong>注意事项</strong></p>
+  <ul>
+    <li>确保 OpenClaw 已正确安装且在命令行中可以运行</li>
+    <li>如果启动失败，检查快捷方式中的路径和端口号是否正确</li>
+    <li>快捷方式中的 <code>--daemon</code> 参数让网关以守护进程模式运行</li>
+  </ul>
+</div>
+
+<hr>
+
+<!-- ===== 4. DeepSeek API 配置 ===== -->
+<h2>四、DeepSeek API 接入配置</h2>
+<p>使用 <code>onboard</code> 命令配置模式，交互式填写信息，简单快捷。</p>
+
+<h3>4.1 获取 DeepSeek API Key</h3>
+
+<div class="step-card">
+  <p><span class="num-badge">1</span> <strong>注册 DeepSeek 账号</strong></p>
+  <p>访问 <a href="https://platform.deepseek.com" style="color:var(--accent);">platform.deepseek.com</a>，注册并登录。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">2</span> <strong>创建 API Key</strong></p>
+  <p>登录后进入控制台 → API Keys → 点击「创建 API Key」。</p>
+  <p>输入名称（如 "openclaw-agent"），创建后立即复制保存 Key。</p>
+  <div class="warn-box" style="margin: 0.5rem 0; border-style: none; border-left: 3px solid var(--accent-warm);">
+    <p><strong>注意：</strong>API Key 关闭弹窗后不再显示完整内容，务必立即复制保存。</p>
+  </div>
+</div>
+
+<h3>4.2 使用 onboard 命令配置</h3>
+
+<div class="step-card">
+  <p><span class="num-badge">1</span> <strong>启动 onboard 交互配置</strong></p>
+  <p>在终端中运行：</p>
+  <pre>openclaw onboard</pre>
+  <p>按提示依次完成各项配置。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">2</span> <strong>选择模型供应商</strong></p>
+  <p>在模型配置步骤中，选择 <code>DeepSeek</code> 作为 AI 模型供应商。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">3</span> <strong>填写 API 信息</strong></p>
+  <p>交互式配置过程中，按提示输入：</p>
+  <ul>
+    <li><strong>API Key</strong>：粘贴刚创建的 DeepSeek API Key</li>
+    <li><strong>模型名称</strong>：推荐使用 <code>deepseek-chat</code></li>
+    <li><strong>API 端点</strong>：<code>https://api.deepseek.com</code>（默认）</li>
+    <li><strong>其他参数</strong>：Temperature（温度）建议 0.7，Max Tokens 建议 4096</li>
+  </ul>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">4</span> <strong>测试连接</strong></p>
+  <p>配置完成后，onboard 会自动进行连接测试。如果测试成功，会显示类似信息：</p>
+  <pre>✓ DeepSeek API 连接成功<br>  模型: deepseek-chat<br>  Token 余额: xxx</pre>
+</div>
+
+<h3>4.3 手动配置</h3>
+<p>也可以通过 OpenClaw 管理控制台进行配置：</p>
+
+<div class="step-card">
+  <p><span class="num-badge">1</span> <strong>进入控制台</strong></p>
+  <p>浏览器访问 <code>http://localhost:18789</code>，进入 OpenClaw 管理控制台。</p>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">2</span> <strong>配置模型</strong></p>
+  <p>找到「模型 / Model」或「AI 配置」页面：</p>
+  <ul>
+    <li>添加新模型供应商，选择 <code>DeepSeek</code></li>
+    <li>填入 API Key、模型名称、API 端点</li>
+    <li>保存配置</li>
+  </ul>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">3</span> <strong>设置默认模型</strong></p>
+  <p>在「默认模型 / Default Model」中，选择刚配置的 DeepSeek 模型作为默认 AI 模型。</p>
+</div>
+
+<div class="tip-box">
+  <p><strong>DeepSeek 模型推荐</strong></p>
+  <ul>
+    <li><strong>deepseek-chat</strong>：通用对话模型，适合日常使用，性价比高</li>
+    <li><strong>deepseek-reasoner</strong>：推理增强模型，适合复杂任务</li>
+    <li>API 计费方式：按 Token 计费，可先在 DeepSeek 平台充值</li>
+  </ul>
+</div>
+
+<hr>
+
+<!-- ===== 5. 验证 ===== -->
+<h2>五、端到端验证</h2>
+
+<div class="step-card">
+  <p><span class="num-badge">1</span> <strong>确认网关运行中</strong></p>
+  <pre>openclaw gateway status</pre>
+</div>
+
+<div class="step-card">
+  <p><span class="num-badge">2</span> <strong>在飞书中测试</strong></p>
+  <p>打开飞书群聊，@机器人 发送一条消息，例如：</p>
+  <pre>@OpenClaw 你好，帮我写一个投票系统</pre>
+  <p>如果机器人正常回复，说明整套配置已完成。</p>
+</div>
+
+<div class="tip-box">
+  <p><strong>配置完成后的下一步</strong></p>
+  <p>你现在可以：</p>
+  <ul>
+    <li>在飞书中与 OpenClaw 对话，让 AI 生成网页应用</li>
+    <li>在 OpenClaw 控制台中添加更多渠道（企业微信、Discord 等）</li>
+    <li>配置定时任务（Cron Job），让 AI 自动执行周期性工作</li>
+    <li>安装 Community Skills，扩展 AI 能力</li>
+  </ul>
+</div>
+
+</div>
+</body>
+</html>

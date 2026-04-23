@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据库配置与前端发布指南</title>
+  <style>
+    :root {
+      --bg: #071019; --bg-soft: #0c1824;
+      --panel: rgba(8,18,31,0.82);
+      --line: rgba(116,208,255,0.18);
+      --text: #eef5ff; --muted: #a5b6cc;
+      --accent: #7af4ff; --accent-warm: #ff8e49;
+      --green: #4cdf8b; --yellow: #ffd93d;
+      --purple: #b388ff;
+      --shadow: 0 20px 50px rgba(0,0,0,0.35);
+      --radius-xl: 32px; --radius-lg: 20px; --radius-md: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Noto Serif SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.8;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+    h1 { font-size: 2rem; margin: 2rem 0 0.5rem; }
+    h2 {
+      font-size: 1.4rem; margin: 2.5rem 0 0.8rem;
+      padding-left: 0.6rem; border-left: 3px solid var(--accent);
+    }
+    h3 { font-size: 1.1rem; margin: 1.8rem 0 0.4rem; color: var(--accent); }
+    h4 { font-size: 1rem; margin: 1.2rem 0 0.3rem; }
+    p { margin-bottom: 0.8rem; color: var(--muted); }
+    ul, ol { padding-left: 1.4rem; margin-bottom: 0.8rem; }
+    li { color: var(--muted); margin-bottom: 0.3rem; }
+    strong { color: var(--text); }
+    code {
+      display: inline-block; padding: 0.1rem 0.45rem;
+      border-radius: 6px; background: rgba(0,0,0,0.4);
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 0.85em; color: var(--accent);
+    }
+    pre {
+      margin: 0.6rem 0 1rem; padding: 0.8rem 1rem;
+      border-radius: 12px; background: rgba(0,0,0,0.45);
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 0.85em; color: var(--accent);
+      overflow-x: auto; line-height: 1.7;
+    }
+    .card, .note-box, .tip-box, .warn-box {
+      margin: 0.8rem 0 1.2rem; padding: 1rem 1.2rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line);
+      background: rgba(7,16,27,0.7);
+      position: relative; overflow: hidden;
+    }
+    .card::before, .note-box::before, .tip-box::before, .warn-box::before {
+      content: ""; position: absolute; inset: 0 auto auto 0;
+      width: 100%; height: 3px; opacity: 0.8;
+    }
+    .card::before { background: linear-gradient(90deg, var(--accent), transparent 72%); }
+    .note-box::before { background: linear-gradient(90deg, var(--yellow), transparent 72%); }
+    .tip-box::before { background: linear-gradient(90deg, var(--green), transparent 72%); }
+    .warn-box::before { background: linear-gradient(90deg, var(--accent-warm), transparent 72%); }
+    .card p, .note-box p, .tip-box p, .warn-box p { margin-bottom: 0.4rem; }
+    .card ul, .note-box ul, .tip-box ul, .warn-box ul { margin-bottom: 0.2rem; }
+    .num-badge {
+      display: inline-block; min-width: 1.8rem; height: 1.8rem;
+      line-height: 1.8rem; text-align: center; border-radius: 50%;
+      background: rgba(122,244,255,0.12); color: var(--accent);
+      font-weight: bold; font-size: 0.85rem; margin-right: 0.5rem;
+    }
+    hr { border: none; border-top: 1px solid var(--line); margin: 2rem 0; }
+    .sub-title { color: var(--muted); font-size: 1.05rem; margin-bottom: 1.5rem; }
+    .toc { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 2rem; }
+    .toc a {
+      color: var(--muted); text-decoration: none;
+      border: 1px solid var(--line); border-radius: 8px;
+      padding: 0.3rem 0.8rem; font-size: 0.85rem; transition: all 0.2s;
+    }
+    .toc a:hover { border-color: var(--accent); color: var(--accent); }
+    @media (max-width: 600px) {
+      .wrap { padding: 1rem 1rem 3rem; }
+      h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>数据库配置与前端发布指南</h1>
+<p class="sub-title">使用 Supabase 作为后台数据库 + GitHub Pages 发布前端网页</p>
+
+<div class="toc">
+  <a href="#overview">方案概述</a>
+  <a href="#supabase">Supabase 数据库</a>
+  <a href="#api">前后端关联</a>
+  <a href="#vercel">踩坑记录</a>
+  <a href="#github">GitHub Pages 发布</a>
+  <a href="#verify">验证与迭代</a>
+</div>
+
+<!-- ===== 方案概述 ===== -->
+<h2 id="overview">方案概述</h2>
+<p>本指南介绍如何为 HTML 前端页面接入 Supabase 后台数据库，并通过 GitHub Pages 将网页发布上线。整体架构如下：</p>
+
+<div class="card">
+  <p><strong>前端层</strong> — 纯 HTML/CSS/JS 静态页面，无后端服务</p>
+  <p><strong>数据库层</strong> — Supabase（基于 PostgreSQL，提供 REST API + SDK）</p>
+  <p><strong>托管层</strong> — GitHub Pages（免费 HTTPS + 自定义域名支持）</p>
+  <p><strong>部署流程</strong> — AI 生成 HTML => 提交到 GitHub => GitHub Pages 自动部署</p>
+</div>
+
+<hr>
+
+<!-- ===== 一、Supabase ===== -->
+<h2 id="supabase">一、Supabase 数据库配置</h2>
+
+<h3>1.1 注册 Supabase</h3>
+
+<div class="card">
+  <p>访问 <a href="https://supabase.com" style="color: var(--accent);">supabase.com</a>，使用 GitHub 账号登录或邮箱注册。</p>
+  <p>Supabase 提供免费套餐（Free Tier）：</p>
+  <ul>
+    <li>500MB 数据库空间</li>
+    <li>50,000 月活跃用户</li>
+    <li>2GB 带宽</li>
+    <li>支持 PostgreSQL 所有核心功能</li>
+  </ul>
+</div>
+
+<h3>1.2 创建项目</h3>
+
+<div class="card">
+  <p><span class="num-badge">1</span> <strong>新建项目</strong></p>
+  <p>登录后点击「New Project」，填写：</p>
+  <ul>
+    <li><strong>Name</strong>：项目名称（如 voting-system）</li>
+    <li><strong>Database Password</strong>：设置数据库密码（务必记住）</li>
+    <li><strong>Region</strong>：选择距离最近的区域（如东京 ap-northeast-1）</li>
+    <li><strong>Pricing Plan</strong>：选择 Free Tier 即可</li>
+  </ul>
+</div>
+
+<div class="card">
+  <p><span class="num-badge">2</span> <strong>等待初始化</strong></p>
+  <p>创建后需要几秒钟自动初始化。完成后进入项目仪表盘。</p>
+</div>
+
+<h3>1.3 创建数据表</h3>
+<p>在项目仪表盘中，可以创建数据库表。以投票系统为例：</p>
+
+<div class="card">
+  <p><strong>方法一：使用 SQL 编辑器</strong></p>
+  <p>进入 SQL Editor，执行如下建表语句：</p>
+  <pre>-- 活动表
+CREATE TABLE activities (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  start_time TIMESTAMPTZ,
+  end_time TIMESTAMPTZ,
+  status TEXT DEFAULT 'draft',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 报名表
+CREATE TABLE participants (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  activity_id BIGINT REFERENCES activities(id),
+  name TEXT NOT NULL,
+  phone TEXT,
+  email TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 投票表
+CREATE TABLE votes (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  activity_id BIGINT REFERENCES activities(id),
+  participant_id BIGINT REFERENCES participants(id),
+  voter_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(activity_id, voter_id)
+);</pre>
+</div>
+
+<div class="card">
+  <p><strong>方法二：使用 Table Editor 可视化创建</strong></p>
+  <p>进入 Table Editor（左侧菜单），点击「Create a new table」，逐字段添加：</p>
+  <ul>
+    <li>字段名称、类型、默认值</li>
+    <li>主键、外键约束</li>
+    <li>唯一约束（如投票防重复）</li>
+  </ul>
+</div>
+
+<h3>1.4 获取 API 密钥</h3>
+
+<div class="card">
+  <p>在项目仪表盘左侧 → Project Settings → API：</p>
+  <ul>
+    <li><strong>Project URL</strong>：你的 Supabase 项目地址</li>
+    <li><strong>anon/public API key</strong>：前端使用的公开 API Key</li>
+    <li><strong>service_role key</strong>：管理员专用，<strong>不要暴露在前端</strong></li>
+  </ul>
+  <p>复制 Project URL 和 anon key，接下来在 HTML 中配置。</p>
+</div>
+
+<hr>
+
+<!-- ===== 二、前后端关联 ===== -->
+<h2 id="api">二、HTML 前端连接 Supabase</h2>
+
+<h3>2.1 引入 Supabase SDK</h3>
+
+<div class="card">
+  <p>在 HTML 的 <code>&lt;head&gt;</code> 中引入 Supabase JavaScript 客户端：</p>
+  <pre>&lt;script src="https://unpkg.com/@supabase/supabase-js@2"&gt;&lt;/script&gt;</pre>
+  <p>或者使用 ES Module 方式：</p>
+  <pre>&lt;script type="module"&gt;
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+&lt;/script&gt;</pre>
+</div>
+
+<h3>2.2 初始化客户端</h3>
+
+<div class="card">
+  <pre>// 替换为你的项目信息
+const SUPABASE_URL = 'https://xxxxxxxxxxxx.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)</pre>
+</div>
+
+<h3>2.3 常用数据库操作</h3>
+
+<div class="card">
+  <p><strong>查询数据</strong></p>
+  <pre>const { data, error } = await supabase
+  .from('activities')
+  .select('*')
+  .eq('status', 'active')
+  .order('created_at', { ascending: false })</pre>
+</div>
+
+<div class="card">
+  <p><strong>插入数据（报名）</strong></p>
+  <pre>const { data, error } = await supabase
+  .from('participants')
+  .insert([
+    { activity_id: 1, name: '张三', phone: '138xxxx' }
+  ])
+  .select()</pre>
+</div>
+
+<div class="card">
+  <p><strong>投票（含重复检查）</strong></p>
+  <pre>const { data, error } = await supabase
+  .from('votes')
+  .insert([
+    { activity_id: 1, participant_id: 3, voter_id: 'user_001' }
+  ])
+  .select()
+
+// 如果返回 23505 错误（唯一约束冲突），说明已投票</pre>
+</div>
+
+<div class="card">
+  <p><strong>实时排名</strong></p>
+  <pre>const { data, error } = await supabase
+  .from('votes')
+  .select('participant_id, count')
+  .eq('activity_id', 1)
+  .order('count', { ascending: false })</pre>
+</div>
+
+<div class="tip-box">
+  <p><strong>安全提示</strong></p>
+  <ul>
+    <li>API Key 暴露在前端是安全的，因为 Supabase 通过 Row Level Security（RLS）控制权限</li>
+    <li>默认情况下，建议启用 RLS 并设置合理的访问策略</li>
+    <li>在 SQL Editor 中运行：<code>ALTER TABLE your_table ENABLE ROW LEVEL SECURITY;</code></li>
+  </ul>
+</div>
+
+<h3>2.4 允许跨域访问</h3>
+
+<div class="card">
+  <p>进入 Supabase 项目设置 → API → 将你的 GitHub Pages 域名添加到允许列表：</p>
+  <pre>https://your-username.github.io</pre>
+</div>
+
+<hr>
+
+<!-- ===== 三、踩坑 Vercel ===== -->
+<h2 id="vercel">三、踩坑记录：Supabase + Vercel</h2>
+<p>我在最初阶段尝试了 Supabase + Vercel 的方案，发现了两个关键问题。</p>
+
+<div class="warn-box">
+  <p><strong>问题一：Vercel 在中国大陆无法访问</strong></p>
+  <p>Vercel 是一个优秀的全球前端部署平台，支持 GitHub 自动部署、HTTPS、自定义域名。但它的 CDN 节点在中国大陆被屏蔽，用户直接访问会超时或无法连接。</p>
+  <p><strong>解决方案</strong>：使用 GitHub Pages 替代 Vercel。GitHub Pages 在国内大多数网络环境下可以访问。</p>
+</div>
+
+<div class="warn-box">
+  <p><strong>问题二：Supabase API 国内访问不稳定</strong></p>
+  <p>Supabase 的 API 服务器在美国/欧洲，从中国大陆直接请求 API 有时会出现高延迟或偶尔超时。如果你的项目面向国内用户，这是需要评估的点。</p>
+  <p><strong>缓解方案</strong>：</p>
+  <ul>
+    <li>创建项目时选择东京（Tokyo）区域，延迟较低</li>
+    <li>前端合理使用数据缓存，减少重复请求</li>
+    <li>如果必须面向国内生产环境，考虑国内云数据库方案</li>
+  </ul>
+</div>
+
+<div class="note-box">
+  <p><strong>经验总结</strong></p>
+  <p>技术方案没有完美的。Supabase + Vercel 对于海外用户或开发者演示非常好用（免费、无需维护、功能强大），但对于需要稳定服务中国用户的场景，需要做好应对方案。</p>
+</div>
+
+<hr>
+
+<!-- ===== 四、GitHub Pages ===== -->
+<h2 id="github">四、GitHub Pages 发布前端</h2>
+
+<h3>4.1 创建 GitHub 仓库</h3>
+
+<div class="card">
+  <p><span class="num-badge">1</span> <strong>登录 GitHub</strong></p>
+  <p>访问 <a href="https://github.com" style="color: var(--accent);">github.com</a> 并登录。</p>
+</div>
+
+<div class="card">
+  <p><span class="num-badge">2</span> <strong>创建新仓库</strong></p>
+  <p>点击右上角 + 号 → New repository：</p>
+  <ul>
+    <li><strong>Repository name</strong>：如 <code>voting-system</code></li>
+    <li><strong>Public / Private</strong>：选 Public（GitHub Pages 免费版需要 Public 仓库）</li>
+    <li>勾选「Add a README file」（可选）</li>
+  </ul>
+</div>
+
+<h3>4.2 提交 HTML 文件</h3>
+
+<div class="card">
+  <p><strong>方式一：通过 Git 命令行</strong></p>
+  <pre>git init
+git add .
+git commit -m "初始化投票系统"
+git branch -M main
+git remote add origin https://github.com/用户名/voting-system.git
+git push -u origin main</pre>
+</div>
+
+<div class="card">
+  <p><strong>方式二：直接在 GitHub 网页上传</strong></p>
+  <p>进入仓库 → Add file → Upload files → 将 HTML 文件拖拽上传 → Commit changes。</p>
+</div>
+
+<div class="card">
+  <p><strong>方式三：通过 OpenClaw 自动提交（专家模式）</strong></p>
+  <p>在 OpenClaw 中配置 GitHub 仓库后，只需对 AI 说一句话，AI 会自动：</p>
+  <ul>
+    <li>修改 HTML 文件内容</li>
+    <li>执行 <code>git add</code> / <code>git commit</code> / <code>git push</code></li>
+    <li>触发 GitHub Pages 自动部署</li>
+  </ul>
+  <p style="color: var(--green); margin-top:0.3rem;">整个流程：一句话搞定！</p>
+</div>
+
+<h3>4.3 启用 GitHub Pages</h3>
+
+<div class="card">
+  <p><span class="num-badge">1</span> <strong>进入仓库设置</strong></p>
+  <p>在仓库页面点击 Settings → 左侧 Pages。</p>
+</div>
+
+<div class="card">
+  <p><span class="num-badge">2</span> <strong>配置部署源</strong></p>
+  <p>在「Build and deployment」中：</p>
+  <ul>
+    <li><strong>Source</strong>：选择「Deploy from a branch」</li>
+    <li><strong>Branch</strong>：选择 <code>main</code>，目录选 <code>/ (root)</code></li>
+    <li>点击 <strong>Save</strong></li>
+  </ul>
+</div>
+
+<div class="card">
+  <p><span class="num-badge">3</span> <strong>等待部署</strong></p>
+  <p>保存后 GitHub 会自动开始构建和部署。几分钟后会显示：</p>
+  <pre>Your site is live at https://你的用户名.github.io/voting-system/</pre>
+</div>
+
+<div class="tip-box">
+  <p><strong>HTML 文件名要求</strong></p>
+  <ul>
+    <li>首页文件必须命名为 <code>index.html</code>，否则访问根路径不会自动显示</li>
+    <li>其他页面文件可以直接通过文件名访问，例如 <code>/vote.html</code></li>
+    <li>支持子目录结构，如 <code>/pages/about.html</code></li>
+  </ul>
+</div>
+
+<h3>4.4 绑定自定义域名（可选）</h3>
+
+<div class="card">
+  <p>如果你有自己的域名，可以绑定到 GitHub Pages：</p>
+  <ul>
+    <li>在仓库 Settings → Pages → Custom domain 中输入你的域名</li>
+    <li>在域名 DNS 管理中添加 CNAME 记录指向 <code>你的用户名.github.io</code></li>
+    <li>勾选 Enforce HTTPS（会自动签发 SSL 证书）</li>
+  </ul>
+</div>
+
+<hr>
+
+<!-- ===== 五、验证与迭代 ===== -->
+<h2 id="verify">五、验证与持续迭代</h2>
+
+<h3>5.1 端到端验证</h3>
+
+<div class="card">
+  <p>部署完成后，按以下流程验证：</p>
+  <ul>
+    <li>浏览器打开 GitHub Pages 地址 → 确认页面正常显示</li>
+    <li>提交一条投票数据 → 检查数据是否成功写入 Supabase</li>
+    <li>刷新页面 → 确认排名和投票结果正确读取</li>
+    <li>使用不同浏览器/设备测试 → 确认跨平台兼容性</li>
+  </ul>
+</div>
+
+<h3>5.2 快速迭代流程</h3>
+
+<div class="card">
+  <p>借助 OpenClaw，迭代可以做到：</p>
+  <ul>
+    <li>在飞书中对 AI 说：「帮我改一下投票按钮的颜色」</li>
+    <li>AI 修改 HTML → <code>git push</code> → GitHub Pages 自动部署</li>
+    <li>整个过程 <strong>不到 1 分钟</strong>，无需手动操作</li>
+  </ul>
+  <p style="color: var(--green); margin-top: 0.3rem;">对比传统模式：改代码 → 本地 build → 手动上传 → 等生效。至少 10 分钟。</p>
+</div>
+
+<hr>
+
+<!-- ===== 附：总结 ===== -->
+<h2>附录：方案对比总结</h2>
+
+<div class="card" style="padding: 0; overflow: hidden; border: none;">
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+      <thead>
+        <tr style="background: rgba(122,244,255,0.08);">
+          <th style="padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--line);">项目</th>
+          <th style="padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--line);">腾讯云 CloudBase</th>
+          <th style="padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--line);">Supabase + Vercel</th>
+          <th style="padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--line);">Supabase + GitHub Pages</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="padding: 0.5rem 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05);">国内访问</td><td style="padding: 0.5rem 0.8rem;">✅ 极佳</td><td style="padding: 0.5rem 0.8rem;">❌ Vercel 被墙</td><td style="padding: 0.5rem 0.8rem;">⚠️ 较稳定</td></tr>
+        <tr><td style="padding: 0.5rem 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05);">数据库</td><td style="padding: 0.5rem 0.8rem;">MongoDB 兼容</td><td style="padding: 0.5rem 0.8rem;">PostgreSQL</td><td style="padding: 0.5rem 0.8rem;">PostgreSQL</td></tr>
+        <tr><td style="padding: 0.5rem 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05);">免费额度</td><td style="padding: 0.5rem 0.8rem;">有限</td><td style="padding: 0.5rem 0.8rem;">丰富</td><td style="padding: 0.5rem 0.8rem;">丰富</td></tr>
+        <tr><td style="padding: 0.5rem 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05);">自动化程度</td><td style="padding: 0.5rem 0.8rem;">中</td><td style="padding: 0.5rem 0.8rem;">高</td><td style="padding: 0.5rem 0.8rem;">高</td></tr>
+        <tr><td style="padding: 0.5rem 0.8rem;">更新复杂</td><td style="padding: 0.5rem 0.8rem;">❌ 文档过时</td><td style="padding: 0.5rem 0.8rem;">✅ 文档完善</td><td style="padding: 0.5rem 0.8rem;">✅ 简单可靠</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="note-box" style="margin-top: 1.5rem;">
+  <p><strong>最终推荐</strong></p>
+  <p>对于需要在中国大陆稳定运行的投票系统，推荐 <strong>Supabase（东京区域）+ GitHub Pages</strong> 的组合。这是我自己经过多次踩坑后验证的最佳方案。</p>
+  <p>如果与 OpenClaw 配合，还可以实现「修改 HTML → 自动 git push → 自动部署」的闭环，真正做到一句话完成发布。</p>
+</div>
+
+</div>
+</body>
+</html>
