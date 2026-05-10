@@ -7,341 +7,607 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 20px; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #e2e8f0; min-height: 100vh; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
-        
-        .header { text-align: center; margin-bottom: 30px; padding: 20px; background: #1e293b; border-radius: 15px; }
-        .header h1 { font-size: 2rem; color: #60a5fa; margin-bottom: 10px; }
-        .nav-links { margin-top: 15px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
-        .nav-btn { padding: 8px 16px; background: rgba(96, 165, 250, 0.1); border: 1px solid #3b82f6; border-radius: 6px; color: #60a5fa; text-decoration: none; }
-        
-        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
-        .stat { background: #1e293b; padding: 15px; border-radius: 10px; text-align: center; }
-        .stat-value { font-size: 1.5rem; color: #60a5fa; font-weight: bold; }
-        .stat-label { color: #94a3b8; font-size: 0.9rem; }
-        
-        .scoring-form { background: #1e293b; padding: 20px; border-radius: 15px; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; color: #cbd5e1; }
-        input, select { width: 100%; padding: 8px; background: #0f172a; border: 1px solid #475569; border-radius: 6px; color: white; }
-        button { padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; }
-        
-        .presentations { margin-bottom: 30px; }
-        .presentation { background: #1e293b; padding: 15px; margin: 10px 0; border-radius: 10px; }
-        .presentation-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
-        
-        .ranking { background: #1e293b; padding: 20px; border-radius: 15px; }
-        .rank-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #334155; }
-        .rank-number { color: #f59e0b; font-weight: bold; }
-        
-        .footer { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px solid #334155; color: #94a3b8; }
-        
-        .stars { display: flex; gap: 5px; margin: 10px 0; }
-        .star { font-size: 1.5rem; cursor: pointer; color: #475569; }
-        .star.active { color: #f59e0b; }
-        
-        @media (max-width: 768px) { 
-            .stats { grid-template-columns: 1fr; }
-        }
+        .header { text-align: center; margin-bottom: 40px; padding: 30px; background: rgba(30, 41, 59, 0.8); border-radius: 20px; border: 1px solid rgba(148, 163, 184, 0.2); }
+        .header h1 { font-size: 2.5rem; background: linear-gradient(90deg, #60a5fa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
+        .nav-links { margin-top: 20px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+        .nav-btn { padding: 10px 20px; background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; color: #60a5fa; text-decoration: none; font-weight: 600; }
+
+        .tabs { display: flex; gap: 5px; margin-bottom: 30px; background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 5px; }
+        .tab { flex: 1; padding: 12px; text-align: center; background: transparent; border: none; color: #94a3b8; border-radius: 10px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.2s; }
+        .tab.active { background: linear-gradient(90deg, #3b82f6, #2563eb); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .name-input { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; margin-bottom: 30px; display: flex; gap: 15px; align-items: center; }
+        .name-input input { flex: 1; padding: 12px; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(148, 163, 184, 0.2); border-radius: 8px; color: #f1f5f9; font-size: 1rem; }
+        .name-input button { padding: 12px 30px; background: linear-gradient(90deg, #3b82f6, #2563eb); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .current-user { background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; padding: 10px 20px; display: flex; align-items: center; gap: 10px; margin-bottom: 30px; }
+        .current-user button { padding: 6px 15px; background: transparent; border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 6px; color: #ef4444; cursor: pointer; font-size: 0.85rem; }
+
+        .progress-bar { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 20px 25px; margin-bottom: 25px; }
+        .progress-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; color: #94a3b8; }
+        .progress-track { height: 10px; background: rgba(15, 23, 42, 0.8); border-radius: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #10b981, #38bdf8); border-radius: 5px; transition: width 0.3s; }
+
+        .scoring-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .score-card { background: rgba(30, 41, 59, 0.9); border-radius: 12px; padding: 20px; border: 2px solid rgba(148, 163, 184, 0.1); transition: all 0.2s; }
+        .score-card.scored { border-color: rgba(16, 185, 129, 0.3); opacity: 0.7; }
+        .score-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .score-card-name { font-weight: 600; font-size: 1.1rem; }
+        .theme-tag { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+        .theme-1 { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .theme-2 { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+        .theme-3 { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .theme-4 { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .score-card-body { display: flex; justify-content: space-between; align-items: center; }
+        .score-card-avg { font-size: 1.5rem; font-weight: 700; background: linear-gradient(90deg, #60a5fa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .score-card-count { color: #94a3b8; font-size: 0.85rem; }
+        .score-card-action { padding: 8px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+        .score-btn { background: linear-gradient(90deg, #3b82f6, #2563eb); color: white; }
+        .scored-btn { background: rgba(16, 185, 129, 0.2); color: #10b981; cursor: default; }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: #1e293b; border-radius: 20px; padding: 30px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal h3 { margin-bottom: 20px; font-size: 1.3rem; }
+        .dim-group { margin-bottom: 15px; }
+        .dim-group label { display: block; margin-bottom: 8px; color: #cbd5e1; font-weight: 500; }
+        .dim-group .score-selector { display: flex; gap: 8px; }
+        .dim-group .score-opt { flex: 1; padding: 10px; text-align: center; border-radius: 8px; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(148, 163, 184, 0.2); color: #94a3b8; cursor: pointer; transition: all 0.15s; }
+        .dim-group .score-opt.selected { border-color: #3b82f6; background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .dim-group .score-opt:hover { border-color: rgba(96, 165, 250, 0.5); }
+        .modal .comment-input { width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(148, 163, 184, 0.2); border-radius: 8px; color: #f1f5f9; margin-bottom: 20px; }
+        .modal-actions { display: flex; gap: 10px; }
+        .modal-actions button { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; }
+        .btn-cancel { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+        .btn-submit { background: linear-gradient(90deg, #3b82f6, #2563eb); color: white; }
+
+        .progress-matrix { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; margin-bottom: 25px; overflow-x: auto; }
+        .matrix-table { width: 100%; border-collapse: collapse; }
+        .matrix-table th, .matrix-table td { padding: 8px; text-align: center; font-size: 0.8rem; }
+        .matrix-table th { background: rgba(15, 23, 42, 0.8); color: #94a3b8; }
+        .matrix-table td.cell-done { background: rgba(16, 185, 129, 0.3); color: #10b981; }
+        .matrix-table td.cell-self { background: rgba(148, 163, 184, 0.1); color: #475569; }
+        .matrix-table td.cell-pending { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        .matrix-table td.name-cell { text-align: left; background: rgba(15, 23, 42, 0.8); color: #e2e8f0; font-weight: 500; white-space: nowrap; }
+
+        .ranking-section { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; margin-bottom: 25px; }
+        .ranking-section h3 { margin-bottom: 20px; font-size: 1.2rem; }
+        .rank-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid rgba(148, 163, 184, 0.1); }
+        .rank-pos { width: 35px; font-weight: 700; font-size: 1.1rem; }
+        .rank-pos.top1 { color: #fbbf24; }
+        .rank-pos.top2 { color: #94a3b8; }
+        .rank-pos.top3 { color: #d97706; }
+        .rank-name { flex: 1; font-weight: 500; }
+        .rank-theme { margin-right: 20px; }
+        .rank-score { font-weight: 700; color: #60a5fa; min-width: 50px; text-align: right; }
+        .rank-count { color: #94a3b8; margin-left: 15px; font-size: 0.85rem; }
+        .rank-details { font-size: 0.8rem; color: #94a3b8; margin-left: 15px; }
+
+        .theme-filter { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .theme-filter-btn { padding: 8px 20px; border-radius: 20px; border: 1px solid rgba(148, 163, 184, 0.2); background: transparent; color: #94a3b8; cursor: pointer; font-size: 0.9rem; }
+        .theme-filter-btn.active { background: rgba(59, 130, 246, 0.2); border-color: #3b82f6; color: #60a5fa; }
+
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .stat-box { background: rgba(30, 41, 59, 0.9); border-radius: 12px; padding: 20px; text-align: center; }
+        .stat-box .val { font-size: 2rem; font-weight: 700; background: linear-gradient(90deg, #60a5fa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-box .label { color: #94a3b8; font-size: 0.85rem; margin-top: 5px; }
+
+        .message { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 8px; z-index: 2000; display: none; }
+        .message.success { background: rgba(16, 185, 129, 0.9); color: white; }
+        .message.error { background: rgba(239, 68, 68, 0.9); color: white; }
+
+        .detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-top: 20px; }
+        .detail-card { background: rgba(15, 23, 42, 0.8); border-radius: 10px; padding: 15px; }
+        .detail-card h4 { margin-bottom: 8px; color: #60a5fa; }
+        .detail-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 3px 0; }
+        .detail-row .dl { color: #94a3b8; }
+        .detail-row .dv { color: #e2e8f0; font-weight: 500; }
+
+        .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(148, 163, 184, 0.2); color: #94a3b8; }
+        @media (max-width: 768px) { .scoring-grid { grid-template-columns: 1fr; } .stats-row { grid-template-columns: repeat(2, 1fr); } .name-input { flex-direction: column; } }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>AI 拓边实验室 - 讲演打分系统</h1>
-            <p>对讲演者进行打分（1-5分），系统将自动计算平均分并排序。</p>
+            <p>每位同学需对其他已分享的同学进行多维度评分（仅已完成分享的同学可被评分）</p>
             <div class="nav-links">
-                <a href="index.html" class="nav-btn">返回报名系统</a>
-                <a href="presentation-booking-simple.html" class="nav-btn">进入预约系统</a>
+                <a href="index.html" class="nav-btn">🏠 返回报名系统</a>
+                <a href="presentation-booking.html" class="nav-btn">📅 进入预约系统</a>
+                <a href="AI Experiment-Activity Introduction.html" target="_blank" class="nav-btn">📖 活动介绍</a>
             </div>
         </div>
 
-        <div class="stats">
-            <div class="stat"><div class="stat-value" id="total-presentations">0</div><div class="stat-label">已讲演人数</div></div>
-            <div class="stat"><div class="stat-value" id="total-scores">0</div><div class="stat-label">总评分次数</div></div>
-            <div class="stat"><div class="stat-value" id="avg-score">0.0</div><div class="stat-label">平均分</div></div>
+        <div class="tabs">
+            <button class="tab active" data-tab="scoring">📝 打分</button>
+            <button class="tab" data-tab="progress">📊 进度</button>
+            <button class="tab" data-tab="ranking">🏆 排名</button>
         </div>
 
-        <div class="scoring-form">
-            <h3>进行打分</h3>
-            <div class="form-group">
-                <label>评分人姓名</label>
-                <input type="text" id="rater-name" placeholder="请输入您的姓名">
-            </div>
-            <div class="form-group">
-                <label>选择讲演者</label>
-                <select id="presenter">
-                    <option value="">请选择讲演者</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>评分 (1-5分)</label>
-                <div class="stars" id="stars">
-                    <span class="star" data-value="1">☆</span>
-                    <span class="star" data-value="2">☆</span>
-                    <span class="star" data-value="3">☆</span>
-                    <span class="star" data-value="4">☆</span>
-                    <span class="star" data-value="5">☆</span>
+        <div id="tab-scoring" class="tab-content active">
+            <div id="nameInputSection">
+                <div class="name-input">
+                    <input type="text" id="rater-name-input" placeholder="请输入您的姓名" list="rater-name-list">
+                    <datalist id="rater-name-list"></datalist>
+                    <button onclick="startScoring()">开始打分</button>
                 </div>
-                <input type="hidden" id="score" value="0">
             </div>
-            <div class="form-group">
-                <label>评价意见（可选）</label>
-                <input type="text" id="comment" placeholder="请输入评价意见">
+            <div id="scoringSection" style="display:none;">
+                <div class="current-user">
+                    <span>👤 当前评分人：<strong id="currentRater"></strong></span>
+                    <button onclick="logout()">退出</button>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-header">
+                        <span>评分进度</span>
+                        <span id="progressText">0 / 19 已完成</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="scoring-grid" id="scoringGrid"></div>
             </div>
-            <button onclick="submitScore()">提交评分</button>
         </div>
 
-        <div class="presentations">
-            <h3>近期讲演记录</h3>
-            <div id="presentations-list">
-                <!-- 动态生成 -->
+        <div id="tab-progress" class="tab-content">
+            <div class="stats-row" id="progressStats"></div>
+            <div class="progress-matrix">
+                <h3 style="margin-bottom:15px;">评分完成矩阵</h3>
+                <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:15px;">绿色=已评分，红色=未评分，灰色=自己</p>
+                <div id="progressMatrix"></div>
+            </div>
+            <div class="ranking-section">
+                <h3>按主题统计</h3>
+                <div id="themeStats"></div>
             </div>
         </div>
 
-        <div class="ranking">
-            <h3>讲演者排名</h3>
-            <div id="ranking-list">
-                <!-- 动态生成 -->
+        <div id="tab-ranking" class="tab-content">
+            <div class="theme-filter" id="rankingFilter">
+                <button class="theme-filter-btn active" data-theme="all">全部</button>
+                <button class="theme-filter-btn" data-theme="1">云端识别</button>
+                <button class="theme-filter-btn" data-theme="2">多源感知</button>
+                <button class="theme-filter-btn" data-theme="3">软件接收机</button>
+                <button class="theme-filter-btn" data-theme="4">研发管理</button>
+            </div>
+            <div class="ranking-section">
+                <h3>综合排名（按总平均分）</h3>
+                <div id="rankingList"></div>
+            </div>
+            <div class="ranking-section">
+                <h3>评分详情</h3>
+                <div class="detail-grid" id="detailGrid"></div>
             </div>
         </div>
 
         <div class="footer">
-            <p>AI 拓边实验室 - 讲演打分系统</p>
+            <p>AI 拓边实验室 - 讲演打分系统 | 基于 Supabase + GitHub Pages</p>
             <p>© 2026 算法团队内部活动</p>
         </div>
     </div>
 
+    <div class="modal-overlay" id="scoreModal">
+        <div class="modal">
+            <h3 id="modalTitle">给 XXX 打分</h3>
+            <div id="modalDimensions"></div>
+            <input type="text" class="comment-input" id="modalComment" placeholder="评语（可选）">
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal()">取消</button>
+                <button class="btn-submit" onclick="submitScore()">提交评分</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="message" id="globalMsg"></div>
+
     <script>
-        const MEMBERS = [
-            "昌胜骐", "陈华炎", "陈玉林", "成余刚", "贺焱", 
-            "胡金林", "胡一帆", "计国锋", "蒋伟", "孔超", 
-            "刘健", "刘煜", "栾梦杰", "闵于", "钱建军", 
-            "王昊俣", "王省超", "吴之祥", "张文宇", "周伟"
+        const MEMBERS = ["昌胜骐","陈华炎","陈玉林","成余刚","贺焱","胡金林","胡一帆","计国锋","蒋伟","孔超","刘健","刘煜","栾梦杰","闵于","钱建军","王昊俣","王省超","吴之祥","张文宇","周伟"];
+        const THEMES = [
+            { id: 1, title: "云端识别", tag: "时空异常分析" },
+            { id: 2, title: "多源感知", tag: "端侧采集" },
+            { id: 3, title: "软件接收机", tag: "GPS 伪距跟踪" },
+            { id: 4, title: "研发管理", tag: "个人项目经理" }
         ];
-        
+        const DIMS = [
+            { key: 'content_quality', label: '内容深度', desc: '研究内容的专业性和深度' },
+            { key: 'presentation_skills', label: '表达清晰', desc: '演讲表达的清晰度和逻辑性' },
+            { key: 'innovation', label: '创新性', desc: '思路和方法的创新程度' },
+            { key: 'practical_value', label: '实用价值', desc: '研究成果的实际应用价值' }
+        ];
+        const MAX_TOTAL = 20;
+
         let supabase = null;
-        let selectedScore = 0;
-        
+        let currentRater = '';
+        let allScores = [];
+        let allBookings = [];
+        let presenterTheme = {};
+        let currentPresenter = '';
+        let dimScores = { content_quality: 0, presentation_skills: 0, innovation: 0, practical_value: 0 };
+
         function init() {
             const url = localStorage.getItem('supabaseUrl') || 'https://mnxlsewwhczawwyjnexr.supabase.co';
             const key = localStorage.getItem('supabaseKey') || 'sb_publishable_82zAM1g-HhuDUIiYHytK_Q_q4CsUUnu';
             supabase = window.supabase.createClient(url, key);
-            
-            // 初始化星星评分
-            initStars();
-            
-            // 加载数据
+
+            // Tab switching
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+            });
+
+            // Ranking filter
+            document.querySelectorAll('.theme-filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.theme-filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    renderRanking(btn.dataset.theme);
+                });
+            });
+
+            // Datalist
+            const dl = document.getElementById('rater-name-list');
+            MEMBERS.forEach(m => { const o = document.createElement('option'); o.value = m; dl.appendChild(o); });
+
             loadData();
         }
-        
-        function initStars() {
-            const stars = document.querySelectorAll('.star');
-            stars.forEach(star => {
-                star.addEventListener('click', () => {
-                    const value = parseInt(star.dataset.value);
-                    selectedScore = value;
-                    document.getElementById('score').value = value;
-                    
-                    // 更新星星显示
-                    stars.forEach((s, index) => {
-                        if (index < value) {
-                            s.textContent = '★';
-                            s.classList.add('active');
-                        } else {
-                            s.textContent = '☆';
-                            s.classList.remove('active');
-                        }
-                    });
-                });
-            });
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+            document.querySelectorAll('.tab-content').forEach(tc => tc.classList.toggle('active', tc.id === `tab-${tab}`));
+            if (tab === 'progress') renderProgress();
+            if (tab === 'ranking') renderRanking('all');
         }
-        
+
         async function loadData() {
-            if (!supabase) return;
-            
             try {
-                // 加载预约数据（确定谁已经讲演过）
-                const { data: bookings } = await supabase
-                    .from('presentation_bookings')
-                    .select('*');
-                
-                // 加载评分数据
-                const { data: scores } = await supabase
-                    .from('presentation_scores')
-                    .select('*');
-                
-                updateDisplay(bookings || [], scores || []);
-            } catch (err) {
-                console.error(err);
-            }
-        }
-        
-        function updateDisplay(bookings, scores) {
-            // 更新统计
-            const presenters = [...new Set(bookings.map(b => b.participant_name))];
-            document.getElementById('total-presentations').textContent = presenters.length;
-            document.getElementById('total-scores').textContent = scores.length;
-            
-            // 计算平均分
-            const avgScore = scores.length > 0 ? 
-                (scores.reduce((sum, s) => sum + s.score, 0) / scores.length).toFixed(1) : '0.0';
-            document.getElementById('avg-score').textContent = avgScore;
-            
-            // 更新讲演者选择
-            const presenterSelect = document.getElementById('presenter');
-            presenterSelect.innerHTML = '<option value="">请选择讲演者</option>';
-            presenters.forEach(name => {
-                const option = document.createElement('option');
-                option.value = name;
-                option.textContent = name;
-                presenterSelect.appendChild(option);
-            });
-            
-            // 显示近期讲演记录
-            const presentationsList = document.getElementById('presentations-list');
-            presentationsList.innerHTML = '';
-            
-            // 按周次分组显示
-            const weeks = {};
-            bookings.forEach(booking => {
-                if (!weeks[booking.week_id]) weeks[booking.week_id] = [];
-                weeks[booking.week_id].push(booking);
-            });
-            
-            Object.keys(weeks).sort((a, b) => b - a).forEach(weekId => {
-                const weekDiv = document.createElement('div');
-                weekDiv.className = 'presentation';
-                weekDiv.innerHTML = `
-                    <div class="presentation-header">
-                        <strong>第${weekId}周讲演者</strong>
-                        <span>${weeks[weekId].length}人</span>
-                    </div>
-                    <div>${weeks[weekId].map(b => b.participant_name).join('、')}</div>
-                `;
-                presentationsList.appendChild(weekDiv);
-            });
-            
-            // 计算并显示排名
-            const scoresByPresenter = {};
-            scores.forEach(score => {
-                if (!scoresByPresenter[score.presenter_name]) {
-                    scoresByPresenter[score.presenter_name] = { total: 0, count: 0 };
-                }
-                scoresByPresenter[score.presenter_name].total += score.score;
-                scoresByPresenter[score.presenter_name].count += 1;
-            });
-            
-            // 计算平均分
-            const rankings = [];
-            for (const [name, data] of Object.entries(scoresByPresenter)) {
-                rankings.push({
-                    name,
-                    average: data.total / data.count,
-                    count: data.count
+                const [{ data: bookings }, { data: scores }] = await Promise.all([
+                    supabase.from('presentation_bookings').select('*').order('week_id').order('slot_number'),
+                    supabase.from('presentation_scores').select('*')
+                ]);
+                allBookings = bookings || [];
+                allScores = scores || [];
+
+                // Build presenter -> theme mapping from bookings
+                presenterTheme = {};
+                allBookings.forEach(b => {
+                    if (b.theme_id) {
+                        presenterTheme[b.participant_name] = b.theme_id;
+                    }
                 });
+                // Fallback: use score data theme info
+                allScores.forEach(s => {
+                    if (s.presenter_theme && !presenterTheme[s.presenter_name]) {
+                        presenterTheme[s.presenter_name] = s.presenter_theme;
+                    }
+                });
+            } catch (e) {
+                console.error('Load failed:', e);
             }
-            
-            // 按平均分排序
-            rankings.sort((a, b) => b.average - a.average);
-            
-            // 显示排名
-            const rankingList = document.getElementById('ranking-list');
-            rankingList.innerHTML = '';
-            
-            if (rankings.length === 0) {
-                rankingList.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 20px;">暂无评分数据</div>';
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('globalMsg');
+            msg.textContent = text;
+            msg.className = `message ${type}`;
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 3000);
+        }
+
+        function startScoring() {
+            const name = document.getElementById('rater-name-input').value.trim();
+            if (!name || !MEMBERS.includes(name)) {
+                showMessage('请选择有效的姓名', 'error');
                 return;
             }
-            
-            rankings.forEach((rank, index) => {
-                const rankDiv = document.createElement('div');
-                rankDiv.className = 'rank-item';
-                rankDiv.innerHTML = `
-                    <div>
-                        <span class="rank-number">第${index + 1}名</span>
-                        <span style="margin-left: 10px;">${rank.name}</span>
+            currentRater = name;
+            document.getElementById('nameInputSection').style.display = 'none';
+            document.getElementById('scoringSection').style.display = 'block';
+            document.getElementById('currentRater').textContent = name;
+            renderScoringGrid();
+        }
+
+        function logout() {
+            currentRater = '';
+            document.getElementById('nameInputSection').style.display = 'block';
+            document.getElementById('scoringSection').style.display = 'none';
+            document.getElementById('rater-name-input').value = '';
+        }
+
+        // 获取已预约（已分享）的同学名单
+        function getPresentedMembers() {
+            const presented = new Set();
+            allBookings.forEach(b => presented.add(b.participant_name));
+            return [...presented];
+        }
+
+        function getOthers() {
+            // 只显示已分享且不是自己的人
+            return getPresentedMembers().filter(m => m !== currentRater);
+        }
+
+        function getPendingToScore() {
+            // 已分享但还没给自己打分的人
+            const scored = getMyScored();
+            return getOthers().filter(m => !scored[m]);
+        }
+
+        function getMyScored() {
+            const scored = {};
+            allScores.filter(s => s.rater_name === currentRater).forEach(s => {
+                scored[s.presenter_name] = s;
+            });
+            return scored;
+        }
+
+        function getPresenterAvg(name) {
+            const scores = allScores.filter(s => s.presenter_name === name);
+            if (scores.length === 0) return null;
+            const total = scores.reduce((sum, s) => {
+                return sum + (s.content_quality || 0) + (s.presentation_skills || 0) + (s.innovation || 0) + (s.practical_value || 0);
+            }, 0);
+            return { avg: (total / scores.length).toFixed(1), count: scores.length };
+        }
+
+        function renderScoringGrid() {
+            const grid = document.getElementById('scoringGrid');
+            const others = getOthers();
+            const pending = getPendingToScore();
+            const scored = getMyScored();
+            const done = others.length - pending.length;
+
+            document.getElementById('progressText').textContent = `${done} / ${others.length} 已完成（${pending.length}待评）`;
+            document.getElementById('progressFill').style.width = others.length > 0 ? `${(done / others.length) * 100}%` : '0%';
+
+            if (others.length === 0) {
+                grid.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:60px;grid-column:1/-1;"><p style="font-size:1.2rem;margin-bottom:10px;">📭 暂无可评分的同学</p><p>只有已预约并完成分享的同学才会出现在评分列表中</p></div>';
+                return;
+            }
+
+            grid.innerHTML = others.map(name => {
+                const themeId = presenterTheme[name] || 0;
+                const theme = THEMES.find(t => t.id === themeId);
+                const scoredEntry = scored[name];
+                const avg = getPresenterAvg(name);
+
+                let actionHtml;
+                if (scoredEntry) {
+                    const myTotal = (scoredEntry.content_quality || 0) + (scoredEntry.presentation_skills || 0) + (scoredEntry.innovation || 0) + (scoredEntry.practical_value || 0);
+                    actionHtml = `<button class="score-card-action scored-btn">已评 ${myTotal}/${MAX_TOTAL}</button>`;
+                } else {
+                    actionHtml = `<button class="score-card-action score-btn" onclick="openScoreModal('${name}')">打分</button>`;
+                }
+
+                return `<div class="score-card ${scoredEntry ? 'scored' : ''}">
+                    <div class="score-card-header">
+                        <span class="score-card-name">${name}</span>
+                        ${theme ? `<span class="theme-tag theme-${theme.id}">${theme.title}</span>` : ''}
                     </div>
-                    <div>
-                        <span style="color: #f59e0b;">${rank.average.toFixed(1)}分</span>
-                        <span style="color: #94a3b8; margin-left: 10px;">(${rank.count}次评分)</span>
+                    <div class="score-card-body">
+                        <div>
+                            ${avg ? `<div class="score-card-avg">${avg.avg}/${MAX_TOTAL}</div>` : '<div style="color:#475569;font-size:1.5rem;">--</div>'}
+                            <div class="score-card-count">${avg ? avg.count + '人已评' : '暂无评分'}</div>
+                        </div>
+                        ${actionHtml}
                     </div>
-                `;
-                rankingList.appendChild(rankDiv);
+                </div>`;
+            }).join('');
+        }
+
+        function openScoreModal(name) {
+            currentPresenter = name;
+            const themeId = presenterTheme[name] || 0;
+            const theme = THEMES.find(t => t.id === themeId);
+            document.getElementById('modalTitle').textContent = `给 ${name} 打分${theme ? ' - ' + theme.title : ''}`;
+
+            dimScores = { content_quality: 0, presentation_skills: 0, innovation: 0, practical_value: 0 };
+
+            const container = document.getElementById('modalDimensions');
+            container.innerHTML = DIMS.map(d => `
+                <div class="dim-group">
+                    <label>${d.label} <span style="color:#64748b;font-weight:400;font-size:0.8rem;">(${d.desc})</span></label>
+                    <div class="score-selector">
+                        ${[1,2,3,4,5].map(v => `<div class="score-opt" data-dim="${d.key}" data-val="${v}" onclick="selectDim('${d.key}', ${v})">${v}</div>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('modalComment').value = '';
+            document.getElementById('scoreModal').classList.add('active');
+        }
+
+        function selectDim(key, val) {
+            dimScores[key] = val;
+            document.querySelectorAll(`.score-opt[data-dim="${key}"]`).forEach(el => {
+                el.classList.toggle('selected', parseInt(el.dataset.val) === val);
             });
         }
-        
+
+        function closeModal() {
+            document.getElementById('scoreModal').classList.remove('active');
+        }
+
         async function submitScore() {
-            const raterName = document.getElementById('rater-name').value.trim();
-            const presenterName = document.getElementById('presenter').value;
-            const score = selectedScore;
-            const comment = document.getElementById('comment').value.trim();
-            
-            if (!raterName || !MEMBERS.includes(raterName)) {
-                alert('请输入有效的成员姓名');
+            const vals = Object.values(dimScores);
+            if (vals.some(v => v === 0)) {
+                showMessage('请完成所有维度的评分', 'error');
                 return;
             }
-            if (!presenterName) {
-                alert('请选择讲演者');
-                return;
-            }
-            if (score < 1 || score > 5) {
-                alert('请选择1-5分的评分');
-                return;
-            }
-            if (raterName === presenterName) {
-                alert('不能给自己打分');
-                return;
-            }
-            
+
             try {
-                // 检查是否已经给该讲演者打过分
                 const { data: existing } = await supabase
                     .from('presentation_scores')
                     .select('id')
-                    .eq('rater_name', raterName)
-                    .eq('presenter_name', presenterName);
-                
-                if (existing.length > 0) {
-                    alert('您已经给该讲演者打过分了');
+                    .eq('rater_name', currentRater)
+                    .eq('presenter_name', currentPresenter);
+
+                if (existing && existing.length > 0) {
+                    showMessage('您已经给该同学打过分了', 'error');
                     return;
                 }
-                
-                // 提交评分
-                await supabase
-                    .from('presentation_scores')
-                    .insert([{
-                        rater_name: raterName,
-                        presenter_name: presenterName,
-                        score: score,
-                        comment: comment || null,
-                        scored_at: new Date().toISOString()
-                    }]);
-                
-                alert('评分提交成功！');
-                
-                // 清空表单
-                document.getElementById('rater-name').value = '';
-                document.getElementById('presenter').value = '';
-                document.getElementById('comment').value = '';
-                selectedScore = 0;
-                document.getElementById('score').value = 0;
-                
-                // 重置星星
-                document.querySelectorAll('.star').forEach(star => {
-                    star.textContent = '☆';
-                    star.classList.remove('active');
-                });
-                
-                // 重新加载数据
-                loadData();
-                
-            } catch (err) {
-                alert('提交失败: ' + err.message);
+
+                const total = vals.reduce((a, b) => a + b, 0);
+                const themeId = presenterTheme[currentPresenter] || null;
+
+                await supabase.from('presentation_scores').insert([{
+                    rater_name: currentRater,
+                    presenter_name: currentPresenter,
+                    presenter_theme: themeId,
+                    content_quality: dimScores.content_quality,
+                    presentation_skills: dimScores.presentation_skills,
+                    innovation: dimScores.innovation,
+                    practical_value: dimScores.practical_value,
+                    score: total,
+                    comment: document.getElementById('modalComment').value.trim() || null,
+                    scored_at: new Date().toISOString()
+                }]);
+
+                showMessage('评分提交成功！', 'success');
+                closeModal();
+                await loadData();
+                renderScoringGrid();
+            } catch (e) {
+                showMessage('提交失败: ' + e.message, 'error');
             }
         }
-        
-        // 页面加载时初始化
+
+        function renderProgress() {
+            const presented = getPresentedMembers();
+            const presentedCount = presented.length;
+            // 每个已分享的人需要被其他19人评分，但总可能评分数 = 已分享人数 × 19
+            const totalPossible = presentedCount * (MEMBERS.length - 1);
+            // 只统计对已分享人员的评分
+            const totalDone = allScores.filter(s => presented.includes(s.presenter_name)).length;
+            const pct = totalPossible > 0 ? ((totalDone / totalPossible) * 100).toFixed(1) : 0;
+
+            document.getElementById('progressStats').innerHTML = `
+                <div class="stat-box"><div class="val">${MEMBERS.length}</div><div class="label">参与人数</div></div>
+                <div class="stat-box"><div class="val">${presentedCount}</div><div class="label">已分享人数</div></div>
+                <div class="stat-box"><div class="val">${totalDone}</div><div class="label">已完成评分</div></div>
+                <div class="stat-box"><div class="val">${pct}%</div><div class="label">完成率</div></div>
+            `;
+
+            // Per person progress (只对已分享的人)
+            const personProgress = MEMBERS.map(name => {
+                const done = allScores.filter(s => s.rater_name === name && presented.includes(s.presenter_name)).length;
+                return { name, done, total: presentedCount, pct: presentedCount > 0 ? ((done / presentedCount) * 100).toFixed(0) : 0 };
+            }).sort((a, b) => b.done - a.done);
+
+            const matrixDiv = document.getElementById('progressMatrix');
+            // 矩阵行只展示已分享的人员
+            let html = '<table class="matrix-table"><thead><tr><th>评分人 → 被评人</th>';
+            presented.sort().forEach(m => { html += `<th>${m}</th>`; });
+            html += '</tr></thead><tbody>';
+
+            MEMBERS.forEach(rater => {
+                html += `<tr><td class="name-cell">${rater}</td>`;
+                presented.forEach(presenter => {
+                    if (rater === presenter) {
+                        html += '<td class="cell-self">-</td>';
+                    } else {
+                        const scored = allScores.some(s => s.rater_name === rater && s.presenter_name === presenter);
+                        html += `<td class="${scored ? 'cell-done' : 'cell-pending'}">${scored ? '✓' : '○'}</td>`;
+                    }
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            matrixDiv.innerHTML = html;
+
+            // Theme stats - 只统计已分享的人
+            const themeStatsDiv = document.getElementById('themeStats');
+            const themeGroups = {};
+            presented.forEach(name => {
+                const themeId = presenterTheme[name] || 0;
+                if (!themeGroups[themeId]) themeGroups[themeId] = [];
+                themeGroups[themeId].push(name);
+            });
+
+            themeStatsDiv.innerHTML = THEMES.map(theme => {
+                const members = themeGroups[theme.id] || [];
+                if (members.length === 0) return '';
+                const memberScores = members.map(name => {
+                    const scores = allScores.filter(s => s.presenter_name === name);
+                    if (scores.length === 0) return 0;
+                    const total = scores.reduce((sum, s) => sum + (s.content_quality || 0) + (s.presentation_skills || 0) + (s.innovation || 0) + (s.practical_value || 0), 0);
+                    return total / scores.length;
+                }).filter(v => v > 0);
+                const avg = memberScores.length > 0 ? (memberScores.reduce((a, b) => a + b, 0) / memberScores.length).toFixed(1) : '--';
+                return `<div class="rank-item">
+                    <span class="theme-tag theme-${theme.id}" style="margin-right:15px;">${theme.title}</span>
+                    <span style="color:#94a3b8;">${members.length}人</span>
+                    <span style="color:#60a5fa;font-weight:700;margin-left:20px;">组均分: ${avg}/${MAX_TOTAL}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function renderRanking(filterTheme) {
+            // Calculate scores per presenter
+            const presenterData = {};
+            MEMBERS.forEach(name => {
+                const scores = allScores.filter(s => s.presenter_name === name);
+                if (scores.length === 0) return;
+                const total = scores.reduce((sum, s) => sum + (s.content_quality || 0) + (s.presentation_skills || 0) + (s.innovation || 0) + (s.practical_value || 0), 0);
+                presenterData[name] = {
+                    total: total,
+                    count: scores.length,
+                    avg: total / scores.length,
+                    dims: {
+                        content_quality: (scores.reduce((sum, s) => sum + (s.content_quality || 0), 0) / scores.length).toFixed(1),
+                        presentation_skills: (scores.reduce((sum, s) => sum + (s.presentation_skills || 0), 0) / scores.length).toFixed(1),
+                        innovation: (scores.reduce((sum, s) => sum + (s.innovation || 0), 0) / scores.length).toFixed(1),
+                        practical_value: (scores.reduce((sum, s) => sum + (s.practical_value || 0), 0) / scores.length).toFixed(1)
+                    },
+                    theme_id: presenterTheme[name] || 0
+                };
+            });
+
+            let ranking = Object.entries(presenterData).map(([name, data]) => ({ name, ...data }));
+
+            if (filterTheme !== 'all') {
+                const ft = parseInt(filterTheme);
+                ranking = ranking.filter(r => r.theme_id === ft);
+            }
+
+            ranking.sort((a, b) => b.avg - a.avg);
+
+            const list = document.getElementById('rankingList');
+            if (ranking.length === 0) {
+                list.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:30px;">暂无评分数据</div>';
+            } else {
+                list.innerHTML = ranking.map((r, i) => {
+                    const theme = THEMES.find(t => t.id === r.theme_id);
+                    const posClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
+                    return `<div class="rank-item">
+                        <span class="rank-pos ${posClass}">${i + 1}</span>
+                        <span class="rank-name">${r.name}</span>
+                        ${theme ? `<span class="theme-tag theme-${theme.id} rank-theme">${theme.title}</span>` : ''}
+                        <span class="rank-score">${r.avg.toFixed(1)}/${MAX_TOTAL}</span>
+                        <span class="rank-count">(${r.count}人评分)</span>
+                        <span class="rank-details">内容${r.dims.content_quality} | 表达${r.dims.presentation_skills} | 创新${r.dims.innovation} | 实用${r.dims.practical_value}</span>
+                    </div>`;
+                }).join('');
+            }
+
+            // Detail grid
+            const detailGrid = document.getElementById('detailGrid');
+            detailGrid.innerHTML = ranking.slice(0, 10).map(r => {
+                const theme = THEMES.find(t => t.id === r.theme_id);
+                return `<div class="detail-card">
+                    <h4>${r.name} ${theme ? `<span class="theme-tag theme-${theme.id}" style="font-size:0.7rem;">${theme.title}</span>` : ''}</h4>
+                    <div class="detail-row"><span class="dl">总分平均</span><span class="dv" style="color:#60a5fa;">${r.avg.toFixed(1)}/${MAX_TOTAL}</span></div>
+                    <div class="detail-row"><span class="dl">内容深度</span><span class="dv">${r.dims.content_quality}/5</span></div>
+                    <div class="detail-row"><span class="dl">表达清晰</span><span class="dv">${r.dims.presentation_skills}/5</span></div>
+                    <div class="detail-row"><span class="dl">创新性</span><span class="dv">${r.dims.innovation}/5</span></div>
+                    <div class="detail-row"><span class="dl">实用价值</span><span class="dv">${r.dims.practical_value}/5</span></div>
+                    <div class="detail-row"><span class="dl">评分人数</span><span class="dv">${r.count}/19</span></div>
+                </div>`;
+            }).join('');
+        }
+
         document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
