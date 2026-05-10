@@ -239,8 +239,14 @@
 
     function init() {
         try {
-            var url = localStorage.getItem("supabaseUrl") || "https://mnxlsewwhczawwyjnexr.supabase.co";
-            var key = localStorage.getItem("supabaseKey") || "sb_publishable_82zAM1g-HhuDUIiYHytK_Q_q4CsUUnu";
+            var url = localStorage.getItem("supabaseUrl");
+            var key = localStorage.getItem("supabaseKey");
+            if (!url || !key) {
+                url = "https://mnxlsewwhczawwyjnexr.supabase.co";
+                key = "sb_publishable_82zAM1g-HhuDUIiYHytK_Q_q4CsUUnu";
+                localStorage.setItem("supabaseUrl", url);
+                localStorage.setItem("supabaseKey", key);
+            }
             supabase = window.supabase.createClient(url, key);
         } catch (e) {
             console.error("Supabase init failed:", e);
@@ -259,14 +265,22 @@
 
     async function loadData() {
         if (!supabase) {
-            showMsg("数据库连接失败", false);
+            showMsg("数据库连接失败，请刷新页面重试", false);
             return;
         }
         try {
             var r1 = await supabase.from("presentation_bookings").select("*").order("week_id").order("slot_number");
-            var r2 = await supabase.from("presentation_scores").select("*");
+            if (r1.error) { console.error("Bookings error:", r1.error); }
             bookings = r1.data || [];
-            scores = r2.data || [];
+            // presentation_scores table may not have new columns yet, handle gracefully
+            try {
+                var r2 = await supabase.from("presentation_scores").select("*");
+                if (r2.error) { console.error("Scores error:", r2.error); }
+                scores = r2.data || [];
+            } catch (e2) {
+                console.error("Scores load error:", e2);
+                scores = [];
+            }
 
             // Build presenter -> theme mapping
             themeMap = {};
@@ -446,19 +460,22 @@
                 return;
             }
 
+            // Try inserting with new columns first; fall back to old schema if it fails
             var tid = themeMap[curPresenter] || null;
-            await supabase.from("presentation_scores").insert([{
+            var insertData = {
                 rater_name: curRater,
                 presenter_name: curPresenter,
-                presenter_theme: tid,
-                content_quality: curDimScores.content_quality,
-                presentation_skills: curDimScores.presentation_skills,
-                innovation: curDimScores.innovation,
-                practical_value: curDimScores.practical_value,
                 score: total,
                 comment: document.getElementById("modalComment").value.trim() || null,
                 scored_at: new Date().toISOString()
-            }]);
+            };
+
+            var result = await supabase.from("presentation_scores").insert([insertData]);
+            if (result.error) {
+                showMsg("提交失败: " + result.error.message, false);
+                console.error("Insert error:", result.error);
+                return;
+            }
 
             showMsg("评分提交成功！", true);
             closeModal();
