@@ -238,6 +238,13 @@
     }
 
     function init() {
+        // Wait for Supabase library to load
+        if (!window.supabase || !window.supabase.createClient) {
+            showMsg("Supabase 库加载失败，请检查网络连接后刷新页面", false);
+            console.error("window.supabase not available");
+            return;
+        }
+
         try {
             var url = localStorage.getItem("supabaseUrl");
             var key = localStorage.getItem("supabaseKey");
@@ -248,8 +255,11 @@
                 localStorage.setItem("supabaseKey", key);
             }
             supabase = window.supabase.createClient(url, key);
+            console.log("Supabase connected:", url);
         } catch (e) {
             console.error("Supabase init failed:", e);
+            showMsg("数据库初始化失败: " + e.message, false);
+            return;
         }
 
         // Populate datalist
@@ -270,7 +280,17 @@
         }
         try {
             var r1 = await supabase.from("presentation_bookings").select("*").order("week_id").order("slot_number");
-            if (r1.error) { console.error("Bookings error:", r1.error); }
+            if (r1.error) {
+                console.error("Bookings error:", r1.error);
+                // If auth fails, try resetting credentials
+                if (r1.error.code === "PGRST301" || r1.error.message.indexOf("JWT") >= 0 || r1.error.message.indexOf("apikey") >= 0) {
+                    console.log("Auth error, resetting credentials...");
+                    localStorage.removeItem("supabaseUrl");
+                    localStorage.removeItem("supabaseKey");
+                    showMsg("数据库凭证无效，正在重置，请刷新页面", false);
+                    return;
+                }
+            }
             bookings = r1.data || [];
             // presentation_scores table may not have new columns yet, handle gracefully
             try {
