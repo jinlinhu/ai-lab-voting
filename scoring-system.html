@@ -1,19 +1,11 @@
 <!DOCTYPE html>
-<!-- version1 -->
+<!-- version2 -->
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 拓边实验室 - 讲演打分系统</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-    if (!window.supabase || !window.supabase.createClient) {
-        document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
-    }
-    if (!window.supabase || !window.supabase.createClient) {
-        document.write('<script src="https://esm.sh/@supabase/supabase-js@2"><\/script>');
-    }
-    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #e2e8f0; min-height: 100vh; padding: 20px; }
@@ -83,16 +75,16 @@
 
         .ranking-section { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; margin-bottom: 25px; }
         .ranking-section h3 { margin-bottom: 20px; font-size: 1.2rem; }
-        .rank-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid rgba(148, 163, 184, 0.1); }
+        .rank-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid rgba(148, 163, 184, 0.1); flex-wrap: wrap; gap: 8px; }
         .rank-pos { width: 35px; font-weight: 700; font-size: 1.1rem; }
         .rank-pos.top1 { color: #fbbf24; }
         .rank-pos.top2 { color: #94a3b8; }
         .rank-pos.top3 { color: #d97706; }
-        .rank-name { flex: 1; font-weight: 500; }
-        .rank-theme { margin-right: 20px; }
-        .rank-score { font-weight: 700; color: #60a5fa; min-width: 50px; text-align: right; }
-        .rank-count { color: #94a3b8; margin-left: 15px; font-size: 0.85rem; }
-        .rank-details { font-size: 0.8rem; color: #94a3b8; margin-left: 15px; }
+        .rank-name { flex: 1; font-weight: 500; min-width: 80px; }
+        .rank-theme { margin-right: 10px; }
+        .rank-score { font-weight: 700; color: #60a5fa; min-width: 70px; text-align: right; }
+        .rank-count { color: #94a3b8; margin-left: 5px; font-size: 0.85rem; }
+        .rank-details { font-size: 0.8rem; color: #94a3b8; margin-left: 5px; word-break: keep-all; }
 
         .theme-filter { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         .theme-filter-btn { padding: 8px 20px; border-radius: 20px; border: 1px solid rgba(148, 163, 184, 0.2); background: transparent; color: #94a3b8; cursor: pointer; font-size: 0.9rem; }
@@ -115,7 +107,10 @@
         .detail-row .dv { color: #e2e8f0; font-weight: 500; }
 
         .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(148, 163, 184, 0.2); color: #94a3b8; }
-        @media (max-width: 768px) { .scoring-grid { grid-template-columns: 1fr; } .stats-row { grid-template-columns: repeat(2, 1fr); } .name-input { flex-direction: column; } }
+        @media (max-width: 768px) { .scoring-grid { grid-template-columns: 1fr; } .stats-row { grid-template-columns: repeat(2, 1fr); } .name-input { flex-direction: column; } .rank-item { flex-direction: column; align-items: flex-start; } .rank-score { text-align: left; } }
+        
+        .error-banner { background: rgba(239, 68, 68, 0.2); border: 2px solid rgba(239, 68, 68, 0.5); border-radius: 12px; padding: 20px; margin-bottom: 25px; text-align: left; }
+        .error-banner pre { background: #0f172a; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 0.8rem; margin-top: 10px; color: #f1f5f9; }
     </style>
 </head>
 <body>
@@ -129,6 +124,8 @@
                 <a href="AI Experiment-Activity Introduction.html" target="_blank" class="nav-btn">活动介绍</a>
             </div>
         </div>
+
+        <div id="globalErrorArea" style="display:none;" class="error-banner"></div>
 
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('scoring')">打分</button>
@@ -214,6 +211,7 @@
     <div class="msg-box" id="msgBox"></div>
 
     <script>
+    // 成员列表与主题定义
     var MEMBERS = ["昌胜骐","陈华炎","陈玉林","成余刚","贺焱","胡金林","胡一帆","计国锋","蒋伟","孔超","刘健","刘煜","栾梦杰","闵于","钱建军","王昊俣","王省超","吴之祥","张文宇","周伟"];
     var THEMES = [
         { id: 1, title: "云端识别", tag: "时空异常分析" },
@@ -229,111 +227,143 @@
     ];
     var MAX_TOTAL = 20;
 
-    var supabase = null;
+    var supabaseClient = null;
     var curRater = "";
     var scores = [];
     var bookings = [];
     var themeMap = {};
     var curPresenter = "";
     var curDimScores = {};
-    var dataLoaded = false;
+    var isDbReady = false;
 
     function showMsg(text, ok) {
         var el = document.getElementById("msgBox");
         el.textContent = text;
         el.className = "msg-box " + (ok ? "msg-ok" : "msg-err");
         el.style.display = "block";
-        setTimeout(function() { el.style.display = "none"; }, 3000);
+        setTimeout(function() { el.style.display = "none"; }, 4000);
     }
 
-    function init() {
-        // Wait for Supabase library to load
-        if (!window.supabase || !window.supabase.createClient) {
-            showMsg("Supabase 库加载失败，请检查网络连接后刷新页面", false);
-            console.error("window.supabase not available");
-            return;
-        }
+    function showGlobalError(title, details) {
+        var area = document.getElementById("globalErrorArea");
+        area.innerHTML = '<strong>⚠️ ' + title + '</strong><br><small>请根据以下信息联系管理员或按照指引操作</small><pre>' + details + '</pre>';
+        area.style.display = "block";
+    }
 
+    function hideGlobalError() {
+        var area = document.getElementById("globalErrorArea");
+        area.style.display = "none";
+        area.innerHTML = '';
+    }
+
+    // 与index.html完全一致的配置加载逻辑
+    function initSupabase() {
         try {
             var url = localStorage.getItem("supabaseUrl");
             var key = localStorage.getItem("supabaseKey");
             if (!url || !key) {
-                url = "https://mnxlsewwhczawwyjnexr.supabase.co";
-                key = "sb_publishable_82zAM1g-HhuDUIiYHytK_Q_q4CsUUnu";
+                url = 'https://mnxlsewwhczawwyjnexr.supabase.co';
+                key = 'sb_publishable_82zAM1g-HhuDUIiYHytK_Q_q4CsUUnu';
                 localStorage.setItem("supabaseUrl", url);
                 localStorage.setItem("supabaseKey", key);
             }
-            supabase = window.supabase.createClient(url, key);
-            console.log("Supabase connected:", url);
+            if (window.supabase && window.supabase.createClient) {
+                supabaseClient = window.supabase.createClient(url, key);
+                console.log("Supabase 客户端初始化成功");
+                return true;
+            } else {
+                throw new Error("Supabase 库未加载完成");
+            }
         } catch (e) {
-            console.error("Supabase init failed:", e);
-            showMsg("数据库初始化失败: " + e.message, false);
-            return;
+            console.error("Supabase 初始化失败", e);
+            showMsg("数据库连接初始化失败: " + e.message, false);
+            return false;
         }
-
-        // Populate datalist
-        var dl = document.getElementById("nameList");
-        MEMBERS.forEach(function(m) {
-            var o = document.createElement("option");
-            o.value = m;
-            dl.appendChild(o);
-        });
-
-        loadData();
     }
 
+    // 测试基础连接 (使用 registrations 表，该表在报名系统中确认可用)
+    async function testBaseConnection() {
+        if (!supabaseClient) return false;
+        try {
+            var { error } = await supabaseClient.from("registrations").select("id", { count: "exact", head: true });
+            if (error) {
+                console.warn("基础连接测试失败", error);
+                return false;
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // 核心数据加载
     async function loadData() {
-        if (!supabase) {
-            showMsg("数据库连接失败，请刷新页面重试", false);
-            return;
+        if (!supabaseClient) {
+            showMsg("数据库未初始化", false);
+            return false;
         }
         try {
-            var r1 = await supabase.from("presentation_bookings").select("*").order("week_id").order("slot_number");
+            // 加载预约数据
+            var r1 = await supabaseClient.from("presentation_bookings").select("*").order("week_id").order("slot_number");
             if (r1.error) {
-                console.error("Bookings error:", r1.error);
-                // If auth fails, try resetting credentials
-                if (r1.error.code === "PGRST301" || r1.error.message.indexOf("JWT") >= 0 || r1.error.message.indexOf("apikey") >= 0) {
-                    console.log("Auth error, resetting credentials...");
-                    localStorage.removeItem("supabaseUrl");
-                    localStorage.removeItem("supabaseKey");
-                    showMsg("数据库凭证无效，正在重置，请刷新页面", false);
-                    return;
+                if (r1.error.code === "42P01") {
+                    showGlobalError("缺少数据表: presentation_bookings", 
+                        "请在你的 Supabase SQL 编辑器中执行以下语句创建表：\n\n" +
+                        "CREATE TABLE presentation_bookings (\n  id SERIAL PRIMARY KEY,\n  week_id INT NOT NULL,\n  slot_number INT NOT NULL,\n  participant_name TEXT NOT NULL,\n  theme_id INT,\n  booked_at TIMESTAMP DEFAULT NOW()\n);\n\n" +
+                        "ALTER TABLE presentation_bookings ENABLE ROW LEVEL SECURITY;\n" +
+                        "CREATE POLICY \"允许所有人查看\" ON presentation_bookings FOR SELECT USING (true);\n" +
+                        "CREATE POLICY \"允许所有人插入\" ON presentation_bookings FOR INSERT WITH CHECK (true);\n" +
+                        "CREATE POLICY \"允许所有人更新删除\" ON presentation_bookings FOR UPDATE USING (true);");
+                } else {
+                    showMsg("加载预约表失败: " + r1.error.message, false);
                 }
+                return false;
             }
             bookings = r1.data || [];
-            // presentation_scores table may not have new columns yet, handle gracefully
-            try {
-                var r2 = await supabase.from("presentation_scores").select("*");
-                if (r2.error) { console.error("Scores error:", r2.error); }
-                scores = r2.data || [];
-            } catch (e2) {
-                console.error("Scores load error:", e2);
-                scores = [];
-            }
 
-            // Build presenter -> theme mapping
+            // 加载评分数据
+            var r2 = await supabaseClient.from("presentation_scores").select("*");
+            if (r2.error) {
+                if (r2.error.code === "42P01") {
+                    showGlobalError("缺少数据表: presentation_scores", 
+                        "请在你的 Supabase SQL 编辑器中执行以下语句创建表：\n\n" +
+                        "CREATE TABLE presentation_scores (\n  id SERIAL PRIMARY KEY,\n  rater_name TEXT NOT NULL,\n  presenter_name TEXT NOT NULL,\n  content_quality INT DEFAULT 0,\n  presentation_skills INT DEFAULT 0,\n  innovation INT DEFAULT 0,\n  practical_value INT DEFAULT 0,\n  comment TEXT,\n  scored_at TIMESTAMP DEFAULT NOW()\n);\n\n" +
+                        "ALTER TABLE presentation_scores ENABLE ROW LEVEL SECURITY;\n" +
+                        "CREATE POLICY \"允许所有人查看评分\" ON presentation_scores FOR SELECT USING (true);\n" +
+                        "CREATE POLICY \"允许所有人提交评分\" ON presentation_scores FOR INSERT WITH CHECK (true);\n\n" +
+                        "-- 可选索引\nCREATE INDEX idx_scores_presenter ON presentation_scores(presenter_name);\nCREATE INDEX idx_scores_rater ON presentation_scores(rater_name);");
+                } else {
+                    showMsg("加载评分表失败: " + r2.error.message, false);
+                }
+                return false;
+            }
+            scores = r2.data || [];
+
+            // 构建 presenter -> theme_id 映射 (从预约表)
             themeMap = {};
             bookings.forEach(function(b) {
                 if (b.theme_id) themeMap[b.participant_name] = b.theme_id;
             });
+            // 兼容：如果评分表中有theme信息但预约表缺失，也可以补充
             scores.forEach(function(s) {
                 if (s.presenter_theme && !themeMap[s.presenter_name]) {
                     themeMap[s.presenter_name] = s.presenter_theme;
                 }
             });
-            dataLoaded = true;
 
-            // Re-render if already scoring
-            if (curRater) renderScoringGrid();
+            hideGlobalError();
+            isDbReady = true;
+            return true;
         } catch (e) {
-            console.error("Load error:", e);
-            showMsg("数据加载失败: " + e.message, false);
+            console.error("数据加载异常", e);
+            showMsg("数据加载异常: " + e.message, false);
+            return false;
         }
     }
 
     function getPresented() {
         var s = new Set();
-        bookings.forEach(function(b) { s.add(b.participant_name); });
+        bookings.forEach(function(b) { if(b.participant_name) s.add(b.participant_name); });
         return Array.from(s);
     }
 
@@ -345,13 +375,34 @@
         return m;
     }
 
+    // 计算某位被评人的平均总分和维度均分
     function getPresenterAvg(name) {
         var ss = scores.filter(function(s) { return s.presenter_name === name; });
         if (!ss.length) return null;
-        var sum = ss.reduce(function(a, s) {
-            return a + (s.content_quality||0) + (s.presentation_skills||0) + (s.innovation||0) + (s.practical_value||0);
-        }, 0);
-        return { avg: (sum / ss.length).toFixed(1), count: ss.length };
+        var totalSum = 0;
+        var dimSum = { content_quality:0, presentation_skills:0, innovation:0, practical_value:0 };
+        ss.forEach(function(s) {
+            var c = s.content_quality || 0;
+            var p = s.presentation_skills || 0;
+            var i = s.innovation || 0;
+            var v = s.practical_value || 0;
+            totalSum += (c + p + i + v);
+            dimSum.content_quality += c;
+            dimSum.presentation_skills += p;
+            dimSum.innovation += i;
+            dimSum.practical_value += v;
+        });
+        var cnt = ss.length;
+        return {
+            avg: (totalSum / cnt).toFixed(1),
+            count: cnt,
+            dims: {
+                content_quality: (dimSum.content_quality / cnt).toFixed(1),
+                presentation_skills: (dimSum.presentation_skills / cnt).toFixed(1),
+                innovation: (dimSum.innovation / cnt).toFixed(1),
+                practical_value: (dimSum.practical_value / cnt).toFixed(1)
+            }
+        };
     }
 
     function getThemeName(name) {
@@ -360,7 +411,6 @@
         return THEMES.find(function(t) { return t.id === tid; }) || null;
     }
 
-    // ===== Tab switching =====
     function switchTab(tab) {
         document.querySelectorAll(".tab-btn").forEach(function(t, i) {
             var tabs = ["scoring", "progress", "ranking"];
@@ -371,26 +421,21 @@
         });
         var panel = document.getElementById("tab-" + tab);
         if (panel) panel.style.display = "block";
-
         if (tab === "progress") renderProgress();
         if (tab === "ranking") renderRanking("all");
     }
 
-    // ===== Scoring =====
-    function startScoring() {
+    async function startScoring() {
         var name = document.getElementById("raterInput").value.trim();
-        var found = false;
-        for (var i = 0; i < MEMBERS.length; i++) {
-            if (MEMBERS[i] === name) { found = true; break; }
-        }
-        if (!name || !found) {
-            showMsg("请输入有效的姓名", false);
+        if (!MEMBERS.includes(name)) {
+            showMsg("请输入有效的GNSS算法研发部成员姓名", false);
             return;
         }
         curRater = name;
         document.getElementById("nameSection").style.display = "none";
         document.getElementById("scoringArea").style.display = "block";
         document.getElementById("raterDisplay").textContent = name;
+        await loadData();  // 确保最新数据
         renderScoringGrid();
     }
 
@@ -406,19 +451,15 @@
         var others = presented.filter(function(m) { return m !== curRater; });
         var myScored = getMyScored();
         var grid = document.getElementById("scoringGrid");
-
         var done = 0;
         others.forEach(function(n) { if (myScored[n]) done++; });
-
         document.getElementById("progressLabel").textContent = done + " / " + others.length + " 已完成";
         var pct = others.length > 0 ? (done / others.length) * 100 : 0;
         document.getElementById("progressBar").style.width = pct + "%";
-
         if (!others.length) {
-            grid.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:60px;grid-column:1/-1;"><p style="font-size:1.2rem;margin-bottom:10px;">暂无可评分的同学</p><p>只有已预约并完成分享的同学才会出现在评分列表中</p></div>';
+            grid.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:60px;grid-column:1/-1;"><p style="font-size:1.2rem;margin-bottom:10px;">暂无可评分的同学</p><p>只有已预约并完成分享的同学才会出现在评分列表中</p><p>请前往「预约系统」完成分享预约</p></div>';
             return;
         }
-
         var html = "";
         for (var i = 0; i < others.length; i++) {
             var name = others[i];
@@ -432,7 +473,6 @@
             var action = entry
                 ? '<div class="scored-label">已评 ' + ((entry.content_quality||0)+(entry.presentation_skills||0)+(entry.innovation||0)+(entry.practical_value||0)) + "/" + MAX_TOTAL + "</div>"
                 : '<button class="score-btn" onclick="openModal(\'' + name + '\')">打分</button>';
-
             html += '<div class="score-card' + (entry ? ' scored' : '') + '">'
                 + '<div class="score-card-header"><span class="score-card-name">' + name + "</span>" + tag + "</div>"
                 + '<div class="score-card-body"><div>' + avgHtml + "</div>" + action + "</div></div>";
@@ -440,13 +480,11 @@
         grid.innerHTML = html;
     }
 
-    // ===== Modal =====
     function openModal(name) {
         curPresenter = name;
         var theme = getThemeName(name);
         document.getElementById("modalTitle").textContent = "给 " + name + " 打分" + (theme ? " - " + theme.title : "");
         curDimScores = {};
-
         var h = "";
         for (var i = 0; i < DIMS.length; i++) {
             var d = DIMS[i];
@@ -474,71 +512,60 @@
     }
 
     async function doSubmitScore() {
-        var vals = [];
         for (var i = 0; i < DIMS.length; i++) {
-            var v = curDimScores[DIMS[i].key];
-            if (!v || v === 0) { showMsg("请完成所有维度的评分", false); return; }
-            vals.push(v);
+            if (!curDimScores[DIMS[i].key]) {
+                showMsg("请完成所有维度的评分", false);
+                return;
+            }
         }
-        var total = vals.reduce(function(a, b) { return a + b; }, 0);
-
         try {
-            var r = await supabase.from("presentation_scores").select("id").eq("rater_name", curRater).eq("presenter_name", curPresenter);
-            if (r.data && r.data.length > 0) {
+            var existing = await supabaseClient.from("presentation_scores").select("id").eq("rater_name", curRater).eq("presenter_name", curPresenter);
+            if (existing.data && existing.data.length > 0) {
                 showMsg("您已经给该同学打过分了", false);
                 return;
             }
-
-            // Try inserting with new columns first; fall back to old schema if it fails
-            var tid = themeMap[curPresenter] || null;
-            var insertData = {
+            var insertObj = {
                 rater_name: curRater,
                 presenter_name: curPresenter,
-                score: total,
+                content_quality: curDimScores.content_quality,
+                presentation_skills: curDimScores.presentation_skills,
+                innovation: curDimScores.innovation,
+                practical_value: curDimScores.practical_value,
                 comment: document.getElementById("modalComment").value.trim() || null,
                 scored_at: new Date().toISOString()
             };
-
-            var result = await supabase.from("presentation_scores").insert([insertData]);
-            if (result.error) {
-                showMsg("提交失败: " + result.error.message, false);
-                console.error("Insert error:", result.error);
-                return;
-            }
-
+            var result = await supabaseClient.from("presentation_scores").insert([insertObj]);
+            if (result.error) throw result.error;
             showMsg("评分提交成功！", true);
             closeModal();
             await loadData();
+            renderScoringGrid();
+            if (document.querySelector(".tab-btn.active").innerText.includes("进度")) renderProgress();
+            if (document.querySelector(".tab-btn.active").innerText.includes("排名")) renderRanking("all");
         } catch (e) {
             showMsg("提交失败: " + e.message, false);
         }
     }
 
-    // ===== Progress =====
-    function renderProgress() {
+    function renderProgress() { /* 复用原逻辑，根据现有scores变量渲染矩阵 */
         var presented = getPresented();
         var pc = presented.length;
         var tp = pc * (MEMBERS.length - 1);
         var td = scores.filter(function(s) { return presented.indexOf(s.presenter_name) >= 0; }).length;
         var pct = tp > 0 ? ((td / tp) * 100).toFixed(1) : "0";
-
         document.getElementById("progStats").innerHTML =
             '<div class="stat-box"><div class="val">' + MEMBERS.length + '</div><div class="label">参与人数</div></div>' +
             '<div class="stat-box"><div class="val">' + pc + '</div><div class="label">已分享</div></div>' +
             '<div class="stat-box"><div class="val">' + td + '</div><div class="label">已完成评分</div></div>' +
             '<div class="stat-box"><div class="val">' + pct + '%</div><div class="label">完成率</div></div>';
-
-        // Matrix
         var h = '<table class="matrix-table"><thead><tr><th>评分人 → 被评人</th>';
         presented.sort().forEach(function(m) { h += "<th>" + m + "</th>"; });
         h += "</tr></thead><tbody>";
-
         MEMBERS.forEach(function(rater) {
             h += '<tr><td class="name-cell">' + rater + "</td>";
             presented.forEach(function(presenter) {
-                if (rater === presenter) {
-                    h += '<td class="cell-self">-</td>';
-                } else {
+                if (rater === presenter) h += '<td class="cell-self">-</td>';
+                else {
                     var done = scores.some(function(s) { return s.rater_name === rater && s.presenter_name === presenter; });
                     h += '<td class="' + (done ? "cell-done" : "cell-pending") + '">' + (done ? "✓" : "○") + "</td>";
                 }
@@ -547,26 +574,17 @@
         });
         h += "</tbody></table>";
         document.getElementById("progMatrix").innerHTML = h;
-
-        // Theme stats
         var groups = {};
-        presented.forEach(function(name) {
-            var tid = themeMap[name] || 0;
-            if (!groups[tid]) groups[tid] = [];
-            groups[tid].push(name);
-        });
-
+        presented.forEach(function(name) { var tid = themeMap[name] || 0; if(!groups[tid]) groups[tid]=[]; groups[tid].push(name); });
         var th = "";
         THEMES.forEach(function(theme) {
             var members = groups[theme.id] || [];
-            if (!members.length) return;
+            if(!members.length) return;
             var ms = members.map(function(name) {
-                var ss = scores.filter(function(s) { return s.presenter_name === name; });
-                if (!ss.length) return 0;
-                var sum = ss.reduce(function(a, s) { return a + (s.content_quality||0) + (s.presentation_skills||0) + (s.innovation||0) + (s.practical_value||0); }, 0);
-                return sum / ss.length;
-            }).filter(function(v) { return v > 0; });
-            var avg = ms.length > 0 ? (ms.reduce(function(a,b){return a+b;},0) / ms.length).toFixed(1) : "--";
+                var avgObj = getPresenterAvg(name);
+                return avgObj ? parseFloat(avgObj.avg) : 0;
+            }).filter(function(v){ return v>0;});
+            var avg = ms.length ? (ms.reduce(function(a,b){return a+b;},0)/ms.length).toFixed(1) : "--";
             th += '<div class="rank-item"><span class="theme-tag theme-' + theme.id + '" style="margin-right:15px;">' + theme.title + "</span>"
                 + '<span style="color:#94a3b8;">' + members.length + "人</span>"
                 + '<span style="color:#60a5fa;font-weight:700;margin-left:20px;">组均分: ' + avg + "/" + MAX_TOTAL + "</span></div>";
@@ -574,93 +592,70 @@
         document.getElementById("themeStats").innerHTML = th;
     }
 
-    // ===== Ranking =====
-    function doFilter(t) {
-        document.querySelectorAll(".theme-filter-btn").forEach(function(b) { b.className = "theme-filter-btn"; });
-        event.target.className = "theme-filter-btn active";
-        renderRanking(t);
-    }
-
+    function doFilter(t) { renderRanking(t); }
     function renderRanking(filterTheme) {
         var data = {};
         var presented = getPresented();
-
         presented.forEach(function(name) {
-            var ss = scores.filter(function(s) { return s.presenter_name === name; });
-            if (!ss.length) return;
-            var sum = ss.reduce(function(a, s) { return a + (s.content_quality||0) + (s.presentation_skills||0) + (s.innovation||0) + (s.practical_value||0); }, 0);
+            var avgObj = getPresenterAvg(name);
+            if(!avgObj) return;
             data[name] = {
-                avg: sum / ss.length,
-                count: ss.length,
+                avg: parseFloat(avgObj.avg),
+                count: avgObj.count,
                 theme_id: themeMap[name] || 0,
-                dims: {
-                    content_quality: (ss.reduce(function(a,s){return a+(s.content_quality||0);},0)/ss.length).toFixed(1),
-                    presentation_skills: (ss.reduce(function(a,s){return a+(s.presentation_skills||0);},0)/ss.length).toFixed(1),
-                    innovation: (ss.reduce(function(a,s){return a+(s.innovation||0);},0)/ss.length).toFixed(1),
-                    practical_value: (ss.reduce(function(a,s){return a+(s.practical_value||0);},0)/ss.length).toFixed(1)
-                }
+                dims: avgObj.dims
             };
         });
-
-        var ranking = [];
-        Object.keys(data).forEach(function(name) {
-            ranking.push({ name: name, avg: data[name].avg, count: data[name].count, theme_id: data[name].theme_id, dims: data[name].dims });
-        });
-
-        if (filterTheme !== "all") {
-            var ft = parseInt(filterTheme);
-            ranking = ranking.filter(function(r) { return r.theme_id === ft; });
-        }
-        ranking.sort(function(a, b) { return b.avg - a.avg; });
-
-        var list = document.getElementById("rankList");
-        if (!ranking.length) {
-            list.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:30px;">暂无评分数据</div>';
-        } else {
+        var ranking = Object.keys(data).map(function(k){ return { name:k, avg:data[k].avg, count:data[k].count, theme_id:data[k].theme_id, dims:data[k].dims }; });
+        if(filterTheme !== "all") ranking = ranking.filter(function(r){ return r.theme_id === parseInt(filterTheme); });
+        ranking.sort(function(a,b){ return b.avg - a.avg; });
+        var listDiv = document.getElementById("rankList");
+        if(!ranking.length) listDiv.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:30px;">暂无评分数据</div>';
+        else {
             var h = "";
-            for (var i = 0; i < ranking.length; i++) {
+            for(var i=0;i<ranking.length;i++) {
                 var r = ranking[i];
-                var theme = THEMES.find(function(t) { return t.id === r.theme_id; });
-                var pc = i === 0 ? "top1" : i === 1 ? "top2" : i === 2 ? "top3" : "";
-                var tag = theme ? '<span class="theme-tag theme-' + theme.id + ' rank-theme">' + theme.title + "</span>" : "";
-                h += '<div class="rank-item">'
-                    + '<span class="rank-pos ' + pc + '">' + (i+1) + "</span>"
-                    + '<span class="rank-name">' + r.name + "</span>"
-                    + tag
-                    + '<span class="rank-score">' + r.avg.toFixed(1) + "/" + MAX_TOTAL + "</span>"
-                    + '<span class="rank-count">(' + r.count + "人评分)</span>"
-                    + '<span class="rank-details">内容' + r.dims.content_quality + " | 表达" + r.dims.presentation_skills + " | 创新" + r.dims.innovation + " | 实用" + r.dims.practical_value + "</span>"
-                    + "</div>";
+                var theme = THEMES.find(function(t){ return t.id === r.theme_id; });
+                var pc = i===0?"top1":i===1?"top2":i===2?"top3":"";
+                var tag = theme ? '<span class="theme-tag theme-'+theme.id+' rank-theme">'+theme.title+"</span>" : "";
+                h += '<div class="rank-item"><span class="rank-pos '+pc+'">'+(i+1)+'</span><span class="rank-name">'+r.name+'</span>'+tag
+                    +'<span class="rank-score">'+r.avg.toFixed(1)+"/"+MAX_TOTAL+'</span>'
+                    +'<span class="rank-count">('+r.count+"人评分)</span>"
+                    +'<span class="rank-details">内容'+r.dims.content_quality+' | 表达'+r.dims.presentation_skills+' | 创新'+r.dims.innovation+' | 实用'+r.dims.practical_value+'</span></div>';
             }
-            list.innerHTML = h;
+            listDiv.innerHTML = h;
         }
-
-        // Detail grid
         var dg = document.getElementById("detailGrid");
         var dh = "";
-        var limit = ranking.length < 10 ? ranking.length : 10;
-        for (var j = 0; j < limit; j++) {
+        for(var j=0;j<Math.min(ranking.length,10);j++) {
             var r2 = ranking[j];
-            var theme2 = THEMES.find(function(t) { return t.id === r2.theme_id; });
-            var tag2 = theme2 ? '<span class="theme-tag theme-' + theme2.id + '" style="font-size:0.7rem;">' + theme2.title + "</span>" : "";
-            dh += '<div class="detail-card"><h4>' + r2.name + " " + tag2 + "</h4>"
-                + '<div class="detail-row"><span class="dl">总分平均</span><span class="dv" style="color:#60a5fa;">' + r2.avg.toFixed(1) + "/" + MAX_TOTAL + '</span></div>'
-                + '<div class="detail-row"><span class="dl">内容深度</span><span class="dv">' + r2.dims.content_quality + '/5</span></div>'
-                + '<div class="detail-row"><span class="dl">表达清晰</span><span class="dv">' + r2.dims.presentation_skills + '/5</span></div>'
-                + '<div class="detail-row"><span class="dl">创新性</span><span class="dv">' + r2.dims.innovation + '/5</span></div>'
-                + '<div class="detail-row"><span class="dl">实用价值</span><span class="dv">' + r2.dims.practical_value + '/5</span></div>'
-                + '<div class="detail-row"><span class="dl">评分人数</span><span class="dv">' + r2.count + '/19</span></div>'
-                + "</div>";
+            var theme2 = THEMES.find(function(t){ return t.id===r2.theme_id; });
+            var tag2 = theme2 ? '<span class="theme-tag theme-'+theme2.id+'" style="font-size:0.7rem;">'+theme2.title+"</span>" : "";
+            dh += '<div class="detail-card"><h4>'+r2.name+" "+tag2+'</h4>'
+                + '<div class="detail-row"><span class="dl">总分平均</span><span class="dv">'+r2.avg.toFixed(1)+"/"+MAX_TOTAL+'</span></div>'
+                + '<div class="detail-row"><span class="dl">内容深度</span><span class="dv">'+r2.dims.content_quality+'/5</span></div>'
+                + '<div class="detail-row"><span class="dl">表达清晰</span><span class="dv">'+r2.dims.presentation_skills+'/5</span></div>'
+                + '<div class="detail-row"><span class="dl">创新性</span><span class="dv">'+r2.dims.innovation+'/5</span></div>'
+                + '<div class="detail-row"><span class="dl">实用价值</span><span class="dv">'+r2.dims.practical_value+'/5</span></div>'
+                + '<div class="detail-row"><span class="dl">评分人数</span><span class="dv">'+r2.count+'/19</span></div></div>';
         }
         dg.innerHTML = dh;
     }
 
-    // Close modal on overlay click
-    document.getElementById("modalOverlay").addEventListener("click", function(e) {
-        if (e.target === this) closeModal();
+    document.getElementById("modalOverlay").addEventListener("click", function(e) { if(e.target===this) closeModal(); });
+    document.addEventListener("DOMContentLoaded", async function() {
+        var ok = initSupabase();
+        if(!ok) return;
+        var connTest = await testBaseConnection();
+        if(!connTest) {
+            showGlobalError("基础数据库连接失败", "无法连接到 Supabase 数据库，请检查网络或确认 URL/Key 正确。\n当前配置：\nURL: "+localStorage.getItem("supabaseUrl")+"\nKey: "+localStorage.getItem("supabaseKey"));
+            return;
+        }
+        await loadData();
+        var dl = document.getElementById("nameList");
+        MEMBERS.forEach(function(m){ var o=document.createElement("option"); o.value=m; dl.appendChild(o); });
+        if(isDbReady) showMsg("数据库连接成功", true);
     });
-
-    document.addEventListener("DOMContentLoaded", init);
     </script>
 </body>
 </html>
