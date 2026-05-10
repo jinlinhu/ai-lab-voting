@@ -242,11 +242,17 @@
         async function cancelBooking(bookingId) {
             if (!confirm('确定取消预约?')) return;
             try {
-                await supabaseClient.from('presentation_bookings').delete().eq('id', bookingId);
+                var result = await supabaseClient.from('presentation_bookings').delete().eq('id', bookingId);
+                if (result.error) {
+                    console.error('Delete error:', result.error);
+                    showMessage('取消失败: ' + result.error.message, 'error');
+                    return;
+                }
                 showMessage('已取消', 'success');
                 loadBookings();
             } catch (error) {
-                showMessage('取消失败', 'error');
+                console.error('Delete exception:', error);
+                showMessage('取消失败: ' + error.message, 'error');
             }
         }
 
