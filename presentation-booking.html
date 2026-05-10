@@ -48,9 +48,9 @@
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card"><div class="stat-value" id="total-slots">21</div><div>总讲演名额</div></div>
+            <div class="stat-card"><div class="stat-value" id="total-slots">20</div><div>总讲演名额</div></div>
             <div class="stat-card"><div class="stat-value" id="booked-slots">0</div><div>已预约名额</div></div>
-            <div class="stat-card"><div class="stat-value" id="remaining-slots">21</div><div>剩余名额</div></div>
+            <div class="stat-card"><div class="stat-value" id="remaining-slots">20</div><div>剩余名额</div></div>
         </div>
 
         <div class="booking-form">
@@ -98,8 +98,12 @@
             { id: 3, date: '2026-05-14', label: '第3周 (5月14日)' },
             { id: 4, date: '2026-05-21', label: '第4周 (5月21日)' },
             { id: 5, date: '2026-05-28', label: '第5周 (5月28日)' },
-            { id: 6, date: '2026-06-04', label: '第6周 (6月4日)' }
+            { id: 6, date: '2026-06-04', label: '第6周 (6月4日)' },
+            { id: 7, date: '2026-06-11', label: '第7周 (6月11日)' },
+            { id: 8, date: '2026-06-18', label: '第8周 (6月18日)' }
         ];
+
+        const TOTAL_SLOTS = 20;
         
         const VALID_NAMES = ["昌胜骐","陈华炎","陈玉林","成余刚","贺焱","胡金林","胡一帆","计国锋","蒋伟","孔超","刘健","刘煜","栾梦杰","闵于","钱建军","王昊俣","王省超","吴之祥","张文宇","周伟"];
         
@@ -155,11 +159,10 @@
         }
         
         function updateStats(bookings) {
-            const total = 21;
             const booked = bookings.length;
-            document.getElementById('total-slots').textContent = total;
+            document.getElementById('total-slots').textContent = TOTAL_SLOTS;
             document.getElementById('booked-slots').textContent = booked;
-            document.getElementById('remaining-slots').textContent = total - booked;
+            document.getElementById('remaining-slots').textContent = TOTAL_SLOTS - booked;
         }
         
         function updateMyBookings(bookings) {
