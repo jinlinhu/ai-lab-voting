@@ -516,11 +516,13 @@
                 showMsg("您已经给该同学打过分了", false);
                 return;
             }
+            var totalScore = curDimScores.content_quality + curDimScores.presentation_skills;
             var insertObj = {
                 rater_name: curRater,
                 presenter_name: curPresenter,
                 content_quality: curDimScores.content_quality,
                 presentation_skills: curDimScores.presentation_skills,
+                score: totalScore,
                 comment: document.getElementById("modalComment").value.trim() || null,
                 scored_at: new Date().toISOString()
             };
