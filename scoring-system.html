@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- version3 -->
+<!-- version4 -->
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -221,10 +221,9 @@
     ];
     var DIMS = [
         { key: "content_quality", label: "内容深度", desc: "研究内容的专业性和深度" },
-        { key: "presentation_skills", label: "表达清晰", desc: "演讲表达的清晰度和逻辑性" },
-        { key: "innovation", label: "创新性", desc: "思路和方法的创新程度" }
+        { key: "presentation_skills", label: "表达清晰", desc: "演讲表达的清晰度和逻辑性" }
     ];
-    var MAX_TOTAL = 30;
+    var MAX_TOTAL = 20;
 
     var supabaseClient = null;
     var curRater = "";
@@ -326,7 +325,7 @@
                 if (r2.error.code === "42P01") {
                     showGlobalError("缺少数据表: presentation_scores", 
                         "请在你的 Supabase SQL 编辑器中执行以下语句创建表：\n\n" +
-                        "CREATE TABLE presentation_scores (\n  id SERIAL PRIMARY KEY,\n  rater_name TEXT NOT NULL,\n  presenter_name TEXT NOT NULL,\n  content_quality INT DEFAULT 0,\n  presentation_skills INT DEFAULT 0,\n  innovation INT DEFAULT 0,\n  comment TEXT,\n  scored_at TIMESTAMP DEFAULT NOW()\n);\n\n" +
+                        "CREATE TABLE presentation_scores (\n  id SERIAL PRIMARY KEY,\n  rater_name TEXT NOT NULL,\n  presenter_name TEXT NOT NULL,\n  content_quality INT DEFAULT 0,\n  presentation_skills INT DEFAULT 0,\n  comment TEXT,\n  scored_at TIMESTAMP DEFAULT NOW()\n);\n\n" +
                         "ALTER TABLE presentation_scores ENABLE ROW LEVEL SECURITY;\n" +
                         "CREATE POLICY \"允许所有人查看评分\" ON presentation_scores FOR SELECT USING (true);\n" +
                         "CREATE POLICY \"允许所有人提交评分\" ON presentation_scores FOR INSERT WITH CHECK (true);\n\n" +
@@ -379,15 +378,13 @@
         var ss = scores.filter(function(s) { return s.presenter_name === name; });
         if (!ss.length) return null;
         var totalSum = 0;
-        var dimSum = { content_quality:0, presentation_skills:0, innovation:0 };
+        var dimSum = { content_quality:0, presentation_skills:0 };
         ss.forEach(function(s) {
             var c = s.content_quality || 0;
             var p = s.presentation_skills || 0;
-            var i = s.innovation || 0;
-            totalSum += (c + p + i);
+            totalSum += (c + p);
             dimSum.content_quality += c;
             dimSum.presentation_skills += p;
-            dimSum.innovation += i;
         });
         var cnt = ss.length;
         return {
@@ -395,8 +392,7 @@
             count: cnt,
             dims: {
                 content_quality: (dimSum.content_quality / cnt).toFixed(1),
-                presentation_skills: (dimSum.presentation_skills / cnt).toFixed(1),
-                innovation: (dimSum.innovation / cnt).toFixed(1)
+                presentation_skills: (dimSum.presentation_skills / cnt).toFixed(1)
             }
         };
     }
@@ -467,7 +463,7 @@
                 ? '<div class="score-card-avg">' + avg.avg + "/" + MAX_TOTAL + "</div><div class=\"score-card-count\">" + avg.count + "人已评</div>"
                 : '<div style="color:#475569;font-size:1.5rem;">--</div><div class="score-card-count">暂无评分</div>';
             var action = entry
-                ? '<div class="scored-label">已评 ' + ((entry.content_quality||0)+(entry.presentation_skills||0)+(entry.innovation||0)) + "/" + MAX_TOTAL + "</div>"
+                ? '<div class="scored-label">已评 ' + ((entry.content_quality||0)+(entry.presentation_skills||0)) + "/" + MAX_TOTAL + "</div>"
                 : '<button class="score-btn" onclick="openModal(\'' + name + '\')">打分</button>';
             html += '<div class="score-card' + (entry ? ' scored' : '') + '">'
                 + '<div class="score-card-header"><span class="score-card-name">' + name + "</span>" + tag + "</div>"
@@ -525,7 +521,6 @@
                 presenter_name: curPresenter,
                 content_quality: curDimScores.content_quality,
                 presentation_skills: curDimScores.presentation_skills,
-                innovation: curDimScores.innovation,
                 comment: document.getElementById("modalComment").value.trim() || null,
                 scored_at: new Date().toISOString()
             };
@@ -616,7 +611,7 @@
                 h += '<div class="rank-item"><span class="rank-pos '+pc+'">'+(i+1)+'</span><span class="rank-name">'+r.name+'</span>'+tag
                     +'<span class="rank-score">'+r.avg.toFixed(1)+"/"+MAX_TOTAL+'</span>'
                     +'<span class="rank-count">('+r.count+"人评分)</span>"
-                    +'<span class="rank-details">内容'+r.dims.content_quality+' | 表达'+r.dims.presentation_skills+' | 创新'+r.dims.innovation+'</span></div>';
+                    +'<span class="rank-details">内容'+r.dims.content_quality+' | 表达'+r.dims.presentation_skills+'</span></div>';
             }
             listDiv.innerHTML = h;
         }
@@ -630,7 +625,6 @@
                 + '<div class="detail-row"><span class="dl">总分平均</span><span class="dv">'+r2.avg.toFixed(1)+"/"+MAX_TOTAL+'</span></div>'
                 + '<div class="detail-row"><span class="dl">内容深度</span><span class="dv">'+r2.dims.content_quality+'/10</span></div>'
                 + '<div class="detail-row"><span class="dl">表达清晰</span><span class="dv">'+r2.dims.presentation_skills+'/10</span></div>'
-                + '<div class="detail-row"><span class="dl">创新性</span><span class="dv">'+r2.dims.innovation+'/10</span></div>'
                 + '<div class="detail-row"><span class="dl">评分人数</span><span class="dv">'+r2.count+'/19</span></div></div>';
         }
         dg.innerHTML = dh;
