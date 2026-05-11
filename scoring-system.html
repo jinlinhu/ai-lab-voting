@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- version6 -->
+<!-- version7 -->
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -462,17 +462,14 @@
             var name = others[i];
             var theme = getThemeName(name);
             var entry = myScored[name];
-            var avg = getPresenterAvg(name);
             var tag = theme ? '<span class="theme-tag theme-' + theme.id + '">' + theme.title + '</span>' : "";
-            var avgHtml = avg
-                ? '<div class="score-card-avg">' + avg.avg + "/" + MAX_TOTAL + "</div><div class=\"score-card-count\">" + avg.count + "人已评</div>"
-                : '<div style="color:#475569;font-size:1.5rem;">--</div><div class="score-card-count">暂无评分</div>';
+            var hint = '<div style="color:#64748b;font-size:0.75rem;margin-bottom:10px;">评分规则：总分 = 内容深度×0.7 + 表达清晰×0.3</div>';
             var action = entry
-                ? '<div class="scored-label">已评 ' + ((entry.content_quality||0)*0.7+(entry.presentation_skills||0)*0.3).toFixed(1) + "/" + MAX_TOTAL + "</div>"
+                ? '<div class="scored-label">已评 ' + ((entry.content_quality||0)*0.7+(entry.presentation_skills||0)*0.3).toFixed(1) + "/" + MAX_TOTAL + '</div>'
                 : '<button class="score-btn" onclick="openModal(\'' + name + '\')">打分</button>';
             html += '<div class="score-card' + (entry ? ' scored' : '') + '">'
                 + '<div class="score-card-header"><span class="score-card-name">' + name + "</span>" + tag + "</div>"
-                + '<div class="score-card-body"><div>' + avgHtml + "</div>" + action + "</div></div>";
+                + '<div class="score-card-body"><div>' + hint + "</div>" + action + "</div></div>";
         }
         grid.innerHTML = html;
     }
