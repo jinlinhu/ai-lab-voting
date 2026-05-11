@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- version10 -->
+<!-- version11 -->
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -225,6 +225,17 @@
     ];
     var MAX_TOTAL = 10;
 
+    var PRESENTATION_WEEKS = [
+        { id: 1, date: '2026-04-23' },
+        { id: 2, date: '2026-05-07' },
+        { id: 3, date: '2026-05-14' },
+        { id: 4, date: '2026-05-21' },
+        { id: 5, date: '2026-05-28' },
+        { id: 6, date: '2026-06-04' },
+        { id: 7, date: '2026-06-11' },
+        { id: 8, date: '2026-06-18' }
+    ];
+
     var supabaseClient = null;
     var curRater = "";
     var scores = [];
@@ -365,7 +376,18 @@
 
     function getPresented() {
         var s = new Set();
-        bookings.forEach(function(b) { if(b.participant_name) s.add(b.participant_name); });
+        var today = new Date().toISOString().slice(0, 10);
+        bookings.forEach(function(b) {
+            if (!b.participant_name) return;
+            var weekDate = '';
+            for (var i = 0; i < PRESENTATION_WEEKS.length; i++) {
+                if (PRESENTATION_WEEKS[i].id === b.week_id) {
+                    weekDate = PRESENTATION_WEEKS[i].date;
+                    break;
+                }
+            }
+            if (weekDate <= today) s.add(b.participant_name);
+        });
         return Array.from(s);
     }
 
