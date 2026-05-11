@@ -212,7 +212,9 @@
 
     <script>
     // 成员列表与主题定义
-    var MEMBERS = ["昌胜骐","陈华炎","陈玉林","成余刚","贺焱","胡金林","胡一帆","计国锋","蒋伟","孔超","刘健","刘煜","栾梦杰","闵于","钱建军","王昊俣","王省超","吴之祥","张文宇","周伟"];
+    var PRESENTERS = ["昌胜骐","陈华炎","陈玉林","成余刚","贺焱","胡金林","胡一帆","计国锋","蒋伟","孔超","刘健","刘煜","栾梦杰","闵于","钱建军","王昊俣","王省超","吴之祥","张文宇","周伟"];
+    var RATER_ONLY = ["柳青松","郭文钰","朱松","傅鑫榕","周铭宇"];
+    var MEMBERS = PRESENTERS.concat(RATER_ONLY);
     var THEMES = [
         { id: 1, title: "云端识别", tag: "时空异常分析" },
         { id: 2, title: "多源感知", tag: "端侧采集" },
@@ -650,7 +652,7 @@
                 + '<div class="detail-row"><span class="dl">总分平均</span><span class="dv">'+r2.avg.toFixed(1)+"/"+MAX_TOTAL+'</span></div>'
                 + '<div class="detail-row"><span class="dl">内容深度</span><span class="dv">'+r2.dims.content_quality+'/10</span></div>'
                 + '<div class="detail-row"><span class="dl">表达清晰</span><span class="dv">'+r2.dims.presentation_skills+'/10</span></div>'
-                + '<div class="detail-row"><span class="dl">评分人数</span><span class="dv">'+r2.count+'/19</span></div></div>';
+                + '<div class="detail-row"><span class="dl">评分人数</span><span class="dv">'+r2.count+'/'+(MEMBERS.length-1)+'</span></div></div>';
         }
         dg.innerHTML = dh;
     }
