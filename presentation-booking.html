@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- version8 -->
+<!-- version9 -->
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -154,15 +154,21 @@
 
         function updateSchedule(bookings) {
             const grid = document.getElementById('scheduleGrid');
+            const currentName = document.getElementById('participant-name').value.trim();
             grid.innerHTML = PRESENTATION_WEEKS.map(week => {
                 const weekBookings = bookings.filter(b => b.week_id === week.id);
                 const slots = [1,2,3].map(slot => {
                     const booking = weekBookings.find(b => b.slot_number === slot);
-                    return booking ?
-                        `<div class="time-slot">第${slot}位: ${booking.participant_name} <button onclick="cancelBooking(${booking.id})" style="float:right;background:#ef4444;color:white;border:none;padding:2px 8px;border-radius:4px;font-size:12px;">取消</button></div>` :
-                        `<div class="time-slot" style="color:#94a3b8;">第${slot}位: 等待预约</div>`;
+                    if (!booking) {
+                        return `<div class="time-slot" style="color:#94a3b8;">第${slot}位: 等待预约</div>`;
+                    }
+                    var cancelBtn = '';
+                    if (booking.participant_name === currentName) {
+                        cancelBtn = ' <button onclick="cancelBooking(' + booking.id + ')" style="float:right;background:#ef4444;color:white;border:none;padding:2px 8px;border-radius:4px;font-size:12px;">取消</button>';
+                    }
+                    return '<div class="time-slot">第' + slot + '位: ' + booking.participant_name + cancelBtn + '</div>';
                 }).join('');
-                return `<div class="week-card"><div class="week-header"><span>${week.label}</span><span>${weekBookings.length}/3</span></div>${slots}</div>`;
+                return '<div class="week-card"><div class="week-header"><span>' + week.label + '</span><span>' + weekBookings.length + '/3</span></div>' + slots + '</div>';
             }).join('');
         }
 
@@ -241,6 +247,13 @@
         async function cancelBooking(bookingId) {
             if (!confirm('确定取消预约?')) return;
             try {
+                // 先验证该预约是否属于当前用户
+                var name = document.getElementById('participant-name').value.trim();
+                var { data: bookingData } = await supabaseClient.from('presentation_bookings').select('participant_name').eq('id', bookingId).single();
+                if (!bookingData || bookingData.participant_name !== name) {
+                    showMessage('无法取消他人的预约', 'error');
+                    return;
+                }
                 var result = await supabaseClient.from('presentation_bookings').delete().eq('id', bookingId);
                 if (result.error) {
                     console.error('Delete error:', result.error);
