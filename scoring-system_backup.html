@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- version12 -->
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -471,46 +472,32 @@
     async function doUndo(name) {
         if (!confirm("确定要撤销对「" + name + "」的评分吗？")) return;
         try {
-            var check = await supabaseClient
-                .from("presentation_scores")
-                .select("id")
-                .eq("rater_name", curRater)
-                .eq("presenter_name", name);
-
-            if (check.error) throw check.error;
-
-            if (check.data && check.data.length > 0) {
-                var scoreId = check.data[0].id;
-                
-                var { data: deletedData, error } = await supabaseClient
-                    .from("presentation_scores")
-                    .delete()
-                    .eq("id", scoreId)
-                    .select();
-
-                if (error) throw error;
-
-                if (!deletedData || deletedData.length === 0) {
-                    showMsg("撤销失败：被数据库安全策略(RLS)拦截，请在Supabase后台开放DELETE权限", false);
-                    return;
-                }
-
-                showMsg("评分已彻底撤销", true);
-            } else {
-                showMsg("未找到相应的评分记录", false);
+            var result = await supabaseClient.from("presentation_scores").delete().eq("rater_name", curRater).eq("presenter_name", name);
+            if (result.error) throw result.error;
+            if (result.data && result.data.length === 0) {
+                var check = await supabaseClient.from("presentation_scores").select("id").eq("rater_name", curRater).eq("presenter_name", name);
+                if (check.data && check.data.length > 0) throw new Error("DELETE 被数据库安全策略拦截");
+            }
+            showMsg("评分已撤销", true);
+        } catch (e) {
+            try {
+                var upd = await supabaseClient.from("presentation_scores").update({
+                    content_quality: 0,
+                    presentation_skills: 0,
+                    score: 0,
+                    comment: null
+                }).eq("rater_name", curRater).eq("presenter_name", name);
+                if (upd.error) throw upd.error;
+                if (upd.data && upd.data.length === 0) throw new Error("UPDATE 也被安全策略拦截");
+                showMsg("评分已重置（原记录因安全策略无法删除）", true);
+            } catch (e2) {
+                showMsg("撤销失败: " + e2.message + "。请在 Supabase 中执行：CREATE POLICY \"allow_delete\" ON presentation_scores FOR DELETE USING (rater_name = auth.jwt()->>'email' OR true);", false);
                 return;
             }
-        } catch (e) {
-            console.error("撤销评分失败:", e);
-            showMsg("撤销失败: " + e.message, false);
-            return;
         }
-
         await loadData();
         renderScoringGrid();
-        if (document.querySelector(".tab-btn.active").innerText.includes("进度")) {
-            renderProgress();
-        }
+        if (document.querySelector(".tab-btn.active").innerText.includes("进度")) renderProgress();
     }
 
     function renderScoringGrid() {
@@ -710,7 +697,7 @@
         if(!ok) return;
         var connTest = await testBaseConnection();
         if(!connTest) {
-            showGlobalError("基础数据库连接失败", "无法连接到 Supabase 数据库，请检查 network 或确认 URL/Key 正确。\n当前配置：\nURL: "+localStorage.getItem("supabaseUrl")+"\nKey: "+localStorage.getItem("supabaseKey"));
+            showGlobalError("基础数据库连接失败", "无法连接到 Supabase 数据库，请检查网络或确认 URL/Key 正确。\n当前配置：\nURL: "+localStorage.getItem("supabaseUrl")+"\nKey: "+localStorage.getItem("supabaseKey"));
             return;
         }
         await loadData();
