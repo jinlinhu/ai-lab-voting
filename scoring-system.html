@@ -48,6 +48,8 @@
         .score-card-count { color: #94a3b8; font-size: 0.85rem; }
         .score-btn { padding: 8px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; font-size: 0.9rem; background: linear-gradient(90deg, #3b82f6, #2563eb); color: white; }
         .scored-label { padding: 8px 20px; border-radius: 8px; border: none; font-weight: 600; font-size: 0.9rem; background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .undo-btn { padding: 8px 20px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); color: #ef4444; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+        .undo-btn:hover { background: rgba(239, 68, 68, 0.2); }
 
         .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); display: none; align-items: center; justify-content: center; z-index: 1000; }
         .modal-overlay.active { display: flex; }
@@ -345,7 +347,8 @@
                         "CREATE TABLE presentation_scores (\n  id SERIAL PRIMARY KEY,\n  rater_name TEXT NOT NULL,\n  presenter_name TEXT NOT NULL,\n  content_quality INT DEFAULT 0,\n  presentation_skills INT DEFAULT 0,\n  comment TEXT,\n  scored_at TIMESTAMP DEFAULT NOW()\n);\n\n" +
                         "ALTER TABLE presentation_scores ENABLE ROW LEVEL SECURITY;\n" +
                         "CREATE POLICY \"允许所有人查看评分\" ON presentation_scores FOR SELECT USING (true);\n" +
-                        "CREATE POLICY \"允许所有人提交评分\" ON presentation_scores FOR INSERT WITH CHECK (true);\n\n" +
+                        "CREATE POLICY \"允许所有人提交评分\" ON presentation_scores FOR INSERT WITH CHECK (true);\n" +
+                        "CREATE POLICY \"允许所有人更新删除\" ON presentation_scores FOR DELETE USING (true);\n\n" +
                         "-- 可选索引\nCREATE INDEX idx_scores_presenter ON presentation_scores(presenter_name);\nCREATE INDEX idx_scores_rater ON presentation_scores(rater_name);");
                 } else {
                     showMsg("加载评分表失败: " + r2.error.message, false);
@@ -466,6 +469,20 @@
         document.getElementById("raterInput").value = "";
     }
 
+    async function doUndo(name) {
+        if (!confirm("确定要撤销对「" + name + "」的评分吗？")) return;
+        try {
+            var result = await supabaseClient.from("presentation_scores").delete().eq("rater_name", curRater).eq("presenter_name", name);
+            if (result.error) throw result.error;
+            showMsg("评分已撤销", true);
+            await loadData();
+            renderScoringGrid();
+            if (document.querySelector(".tab-btn.active").innerText.includes("进度")) renderProgress();
+        } catch (e) {
+            showMsg("撤销失败: " + e.message, false);
+        }
+    }
+
     function renderScoringGrid() {
         var presented = getPresented();
         var others = presented.filter(function(m) { return m !== curRater; });
@@ -488,7 +505,7 @@
             var tag = theme ? '<span class="theme-tag theme-' + theme.id + '">' + theme.title + '</span>' : "";
             var hint = '<div style="color:#64748b;font-size:0.75rem;margin-bottom:10px;">评分规则：总分 = 内容深度×0.7 + 表达清晰×0.3</div>';
             var action = entry
-                ? '<div class="scored-label">已评 ' + ((entry.content_quality||0)*0.7+(entry.presentation_skills||0)*0.3).toFixed(1) + "/" + MAX_TOTAL + '</div>'
+                ? '<div style="display:flex;align-items:center;gap:8px;"><span class="scored-label">已评 ' + ((entry.content_quality||0)*0.7+(entry.presentation_skills||0)*0.3).toFixed(1) + "/" + MAX_TOTAL + '</span><button class="undo-btn" onclick="doUndo(\'' + name + '\')">撤销</button></div>'
                 : '<button class="score-btn" onclick="openModal(\'' + name + '\')">打分</button>';
             html += '<div class="score-card' + (entry ? ' scored' : '') + '">'
                 + '<div class="score-card-header"><span class="score-card-name">' + name + "</span>" + tag + "</div>"
