@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- version14 - 修复撤销功能：优先 DELETE，降级 UPDATE 清零，并验证影响行，确保前端恢复“打分”按钮 -->
+<!-- version12 -->
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -114,7 +114,6 @@
         
         .error-banner { background: rgba(239, 68, 68, 0.2); border: 2px solid rgba(239, 68, 68, 0.5); border-radius: 12px; padding: 20px; margin-bottom: 25px; text-align: left; }
         .error-banner pre { background: #0f172a; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 0.8rem; margin-top: 10px; color: #f1f5f9; }
-        .sql-hint { background: #0f172a; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; margin-top: 10px; white-space: pre-wrap; word-break: break-all; color: #facc15; }
     </style>
 </head>
 <body>
@@ -166,7 +165,7 @@
             <div class="stats-row" id="progStats"></div>
             <div class="progress-matrix">
                 <h3 style="margin-bottom:15px;">评分完成矩阵</h3>
-                <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:15px;">绿色=已完成有效评分，红色=未评分，灰色=自己</p>
+                <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:15px;">绿色=已评分，红色=未评分，灰色=自己</p>
                 <div id="progMatrix"></div>
             </div>
             <div class="ranking-section">
@@ -250,11 +249,6 @@
     var curDimScores = {};
     var isDbReady = false;
 
-    function isValidScore(s) {
-        if (!s) return false;
-        return (s.content_quality > 0 && s.presentation_skills > 0);
-    }
-
     function showMsg(text, ok) {
         var el = document.getElementById("msgBox");
         el.textContent = text;
@@ -272,8 +266,14 @@
         area.innerHTML = '<strong>⚠️ ' + title + '</strong><br><small>请根据以下信息联系管理员或按照指引操作</small><pre>' + details + '</pre>';
         area.style.display = "block";
     }
-    function hideGlobalError() { var area = document.getElementById("globalErrorArea"); area.style.display = "none"; area.innerHTML = ''; }
 
+    function hideGlobalError() {
+        var area = document.getElementById("globalErrorArea");
+        area.style.display = "none";
+        area.innerHTML = '';
+    }
+
+    // 与index.html完全一致的配置加载逻辑
     function initSupabase() {
         try {
             var url = localStorage.getItem("supabaseUrl");
@@ -286,33 +286,95 @@
             }
             if (window.supabase && window.supabase.createClient) {
                 supabaseClient = window.supabase.createClient(url, key);
+                console.log("Supabase 客户端初始化成功");
                 return true;
-            } else throw new Error("Supabase 库未加载");
-        } catch (e) { showMsg("初始化失败: " + e.message, false); return false; }
+            } else {
+                throw new Error("Supabase 库未加载完成");
+            }
+        } catch (e) {
+            console.error("Supabase 初始化失败", e);
+            showMsg("数据库连接初始化失败: " + e.message, false);
+            return false;
+        }
     }
 
+    // 测试基础连接 (使用 registrations 表，该表在报名系统中确认可用)
     async function testBaseConnection() {
         if (!supabaseClient) return false;
-        try { var { error } = await supabaseClient.from("registrations").select("id", { count: "exact", head: true }); return !error; } catch(e) { return false; }
+        try {
+            var { error } = await supabaseClient.from("registrations").select("id", { count: "exact", head: true });
+            if (error) {
+                console.warn("基础连接测试失败", error);
+                return false;
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
     }
 
+    // 核心数据加载
     async function loadData() {
-        if (!supabaseClient) return false;
+        if (!supabaseClient) {
+            showMsg("数据库未初始化", false);
+            return false;
+        }
         try {
+            // 加载预约数据
             var r1 = await supabaseClient.from("presentation_bookings").select("*").order("week_id").order("slot_number");
-            if (r1.error) throw r1.error;
+            if (r1.error) {
+                if (r1.error.code === "42P01") {
+                    showGlobalError("缺少数据表: presentation_bookings", 
+                        "请在你的 Supabase SQL 编辑器中执行以下语句创建表：\n\n" +
+                        "CREATE TABLE presentation_bookings (\n  id SERIAL PRIMARY KEY,\n  week_id INT NOT NULL,\n  slot_number INT NOT NULL,\n  participant_name TEXT NOT NULL,\n  theme_id INT,\n  booked_at TIMESTAMP DEFAULT NOW()\n);\n\n" +
+                        "ALTER TABLE presentation_bookings ENABLE ROW LEVEL SECURITY;\n" +
+                        "CREATE POLICY \"允许所有人查看\" ON presentation_bookings FOR SELECT USING (true);\n" +
+                        "CREATE POLICY \"允许所有人插入\" ON presentation_bookings FOR INSERT WITH CHECK (true);\n" +
+                        "CREATE POLICY \"允许所有人更新删除\" ON presentation_bookings FOR UPDATE USING (true);");
+                } else {
+                    showMsg("加载预约表失败: " + r1.error.message, false);
+                }
+                return false;
+            }
             bookings = r1.data || [];
+
+            // 加载评分数据
             var r2 = await supabaseClient.from("presentation_scores").select("*");
-            if (r2.error) throw r2.error;
+            if (r2.error) {
+                if (r2.error.code === "42P01") {
+                    showGlobalError("缺少数据表: presentation_scores", 
+                        "请在你的 Supabase SQL 编辑器中执行以下语句创建表：\n\n" +
+                        "CREATE TABLE presentation_scores (\n  id SERIAL PRIMARY KEY,\n  rater_name TEXT NOT NULL,\n  presenter_name TEXT NOT NULL,\n  content_quality INT DEFAULT 0,\n  presentation_skills INT DEFAULT 0,\n  comment TEXT,\n  scored_at TIMESTAMP DEFAULT NOW()\n);\n\n" +
+                        "ALTER TABLE presentation_scores ENABLE ROW LEVEL SECURITY;\n" +
+                        "CREATE POLICY \"允许所有人查看评分\" ON presentation_scores FOR SELECT USING (true);\n" +
+                        "CREATE POLICY \"允许所有人提交评分\" ON presentation_scores FOR INSERT WITH CHECK (true);\n" +
+                        "CREATE POLICY \"允许所有人更新删除\" ON presentation_scores FOR DELETE USING (true);\n\n" +
+                        "-- 可选索引\nCREATE INDEX idx_scores_presenter ON presentation_scores(presenter_name);\nCREATE INDEX idx_scores_rater ON presentation_scores(rater_name);");
+                } else {
+                    showMsg("加载评分表失败: " + r2.error.message, false);
+                }
+                return false;
+            }
             scores = r2.data || [];
+
+            // 构建 presenter -> theme_id 映射 (从预约表)
             themeMap = {};
-            bookings.forEach(function(b) { if (b.theme_id) themeMap[b.participant_name] = b.theme_id; });
+            bookings.forEach(function(b) {
+                if (b.theme_id) themeMap[b.participant_name] = b.theme_id;
+            });
+            // 兼容：如果评分表中有theme信息但预约表缺失，也可以补充
+            scores.forEach(function(s) {
+                if (s.presenter_theme && !themeMap[s.presenter_name]) {
+                    themeMap[s.presenter_name] = s.presenter_theme;
+                }
+            });
+
             hideGlobalError();
             isDbReady = true;
             return true;
         } catch (e) {
-            console.error(e);
-            showMsg("加载数据失败: " + e.message, false);
+            console.error("数据加载异常", e);
+            showMsg("数据加载异常: " + e.message, false);
             return false;
         }
     }
@@ -323,7 +385,12 @@
         bookings.forEach(function(b) {
             if (!b.participant_name) return;
             var weekDate = '';
-            for (var i = 0; i < PRESENTATION_WEEKS.length; i++) if (PRESENTATION_WEEKS[i].id === b.week_id) weekDate = PRESENTATION_WEEKS[i].date;
+            for (var i = 0; i < PRESENTATION_WEEKS.length; i++) {
+                if (PRESENTATION_WEEKS[i].id === b.week_id) {
+                    weekDate = PRESENTATION_WEEKS[i].date;
+                    break;
+                }
+            }
             if (weekDate <= today) s.add(b.participant_name);
         });
         return Array.from(s);
@@ -331,108 +398,140 @@
 
     function getMyScored() {
         var m = {};
-        scores.forEach(function(s) { if (s.rater_name === curRater && isValidScore(s)) m[s.presenter_name] = s; });
+        scores.forEach(function(s) {
+            // Only count as scored if at least one dimension has non-zero score
+            if (s.rater_name === curRater && ((s.content_quality || 0) > 0 || (s.presentation_skills || 0) > 0)) {
+                m[s.presenter_name] = s;
+            }
+        });
         return m;
     }
 
+    // 计算某位被评人的加权平均总分和维度均分
     function getPresenterAvg(name) {
-        var ss = scores.filter(function(s) { return s.presenter_name === name && isValidScore(s); });
+        var ss = scores.filter(function(s) { return s.presenter_name === name; });
         if (!ss.length) return null;
-        var totalSum = 0, dimSum = { content_quality:0, presentation_skills:0 };
+        var totalSum = 0;
+        var dimSum = { content_quality:0, presentation_skills:0 };
         ss.forEach(function(s) {
-            var c = s.content_quality || 0, p = s.presentation_skills || 0;
+            var c = s.content_quality || 0;
+            var p = s.presentation_skills || 0;
             totalSum += (c * 0.7 + p * 0.3);
-            dimSum.content_quality += c; dimSum.presentation_skills += p;
+            dimSum.content_quality += c;
+            dimSum.presentation_skills += p;
         });
         var cnt = ss.length;
-        return { avg: (totalSum / cnt).toFixed(1), count: cnt, dims: { content_quality: (dimSum.content_quality / cnt).toFixed(1), presentation_skills: (dimSum.presentation_skills / cnt).toFixed(1) } };
+        return {
+            avg: (totalSum / cnt).toFixed(1),
+            count: cnt,
+            dims: {
+                content_quality: (dimSum.content_quality / cnt).toFixed(1),
+                presentation_skills: (dimSum.presentation_skills / cnt).toFixed(1)
+            }
+        };
     }
 
-    function getThemeName(name) { var tid = themeMap[name]; if (!tid) return null; return THEMES.find(function(t) { return t.id === tid; }) || null; }
+    function getThemeName(name) {
+        var tid = themeMap[name];
+        if (!tid) return null;
+        return THEMES.find(function(t) { return t.id === tid; }) || null;
+    }
+
     function switchTab(tab) {
-        document.querySelectorAll(".tab-btn").forEach(function(t, i) { var tabs = ["scoring","progress","ranking"]; t.className = "tab-btn" + (tabs[i] === tab ? " active" : ""); });
-        document.querySelectorAll(".tab-panel").forEach(function(p) { p.style.display = "none"; });
-        document.getElementById("tab-" + tab).style.display = "block";
+        document.querySelectorAll(".tab-btn").forEach(function(t, i) {
+            var tabs = ["scoring", "progress", "ranking"];
+            t.className = "tab-btn" + (tabs[i] === tab ? " active" : "");
+        });
+        document.querySelectorAll(".tab-panel").forEach(function(p) {
+            p.style.display = "none";
+        });
+        var panel = document.getElementById("tab-" + tab);
+        if (panel) panel.style.display = "block";
         if (tab === "progress") renderProgress();
         if (tab === "ranking") { showRankingDisabled(); return; }
     }
 
     async function startScoring() {
         var name = document.getElementById("raterInput").value.trim();
-        if (!MEMBERS.includes(name)) { showMsg("请输入有效成员姓名", false); return; }
+        if (!MEMBERS.includes(name)) {
+            showMsg("请输入有效的GNSS算法研发部成员姓名", false);
+            return;
+        }
         curRater = name;
         document.getElementById("nameSection").style.display = "none";
         document.getElementById("scoringArea").style.display = "block";
         document.getElementById("raterDisplay").textContent = name;
-        await loadData();
+        await loadData();  // 确保最新数据
         renderScoringGrid();
     }
-    function doLogout() { curRater = ""; document.getElementById("nameSection").style.display = "block"; document.getElementById("scoringArea").style.display = "none"; document.getElementById("raterInput").value = ""; }
 
-    // ================= 关键修复：撤销功能 =================
+    function doLogout() {
+        curRater = "";
+        document.getElementById("nameSection").style.display = "block";
+        document.getElementById("scoringArea").style.display = "none";
+        document.getElementById("raterInput").value = "";
+    }
+
     async function doUndo(name) {
-        if (!confirm("确定撤销对「" + name + "」的评分吗？撤销后可重新打分。")) return;
+    if (!confirm("确定要撤销对「" + name + "」的评分吗？")) return;
+    try {
+        // Step 1: Attempt to delete the record
+        var result = await supabaseClient.from("presentation_scores").delete().eq("rater_name", curRater).eq("presenter_name", name);
+        if (result.error) throw result.error;
+
+        // Step 2: Verify deletion by checking if record still exists
+        var verify = await supabaseClient.from("presentation_scores").select("id").eq("rater_name", curRater).eq("presenter_name", name);
+        if (verify.data && verify.data.length > 0) {
+            // Record still exists - RLS blocked delete, try UPDATE fallback
+            throw new Error("DELETE_BLOCKED");
+        }
+
+        // Delete succeeded
+        showMsg("评分已撤销，可重新打分", true);
+    } catch (e) {
+        if (e.message !== "DELETE_BLOCKED") {
+            showMsg("删除失败: " + e.message, false);
+            return;
+        }
+
+        // Fallback: UPDATE to reset scores (when delete is blocked by RLS)
         try {
-            // 1. 获取记录ID
-            var { data: existing, error: fetchErr } = await supabaseClient.from("presentation_scores").select("id").eq("rater_name", curRater).eq("presenter_name", name);
-            if (fetchErr) throw fetchErr;
-            if (!existing || existing.length === 0) {
-                showMsg("未找到评分记录，可能已经被撤销", false);
-                return;
+            var upd = await supabaseClient.from("presentation_scores").update({
+                content_quality: 0,
+                presentation_skills: 0,
+                score: 0,
+                comment: null
+            }).eq("rater_name", curRater).eq("presenter_name", name);
+            if (upd.error) throw upd.error;
+
+            // Verify update
+            var verifyUpd = await supabaseClient.from("presentation_scores").select("content_quality,presentation_skills").eq("rater_name", curRater).eq("presenter_name", name);
+            if (verifyUpd.data && verifyUpd.data.length > 0 && (verifyUpd.data[0].content_quality !== 0 || verifyUpd.data[0].presentation_skills !== 0)) {
+                throw new Error("UPDATE 也被安全策略拦截");
             }
-            var recordId = existing[0].id;
-            // 2. 优先尝试 DELETE
-            var { error: delErr } = await supabaseClient.from("presentation_scores").delete().eq("id", recordId);
-            if (!delErr) {
-                showMsg("评分已撤销（已删除）", true);
-                await loadData();
-                renderScoringGrid();
-                if (document.querySelector(".tab-btn.active") && document.querySelector(".tab-btn.active").innerText.includes("进度")) renderProgress();
-                return;
-            }
-            // 3. DELETE 失败（通常为 RLS），降级为 UPDATE 清零，并验证是否真的修改了行
-            console.warn("DELETE 失败，尝试 UPDATE 清零", delErr);
-            var { data: updated, error: updErr } = await supabaseClient
-                .from("presentation_scores")
-                .update({ content_quality: 0, presentation_skills: 0, comment: null, scored_at: new Date().toISOString() })
-                .eq("id", recordId)
-                .select();
-            if (updErr) throw updErr;
-            if (!updated || updated.length === 0 || updated[0].content_quality !== 0) {
-                throw new Error("UPDATE 操作未生效，可能是 RLS 策略限制，无法修改或删除自己的评分记录。");
-            }
-            showMsg("评分已撤销（已将分数清零）", true);
-            await loadData();
-            renderScoringGrid();
-            if (document.querySelector(".tab-btn.active") && document.querySelector(".tab-btn.active").innerText.includes("进度")) renderProgress();
-        } catch (e) {
-            console.error(e);
-            var sqlHint = "\n\n请前往 Supabase SQL Editor 执行以下语句以允许任意成员删除/更新自己的评分（公开环境）：\n\n" +
-                "CREATE POLICY \"允许任何人删除自己的评分\" ON presentation_scores FOR DELETE USING (true);\n" +
-                "CREATE POLICY \"允许任何人更新评分\" ON presentation_scores FOR UPDATE USING (true);\n" +
-                " -- 如果已存在，可先删除旧策略再重新添加。";
-            showMsg("撤销失败: " + e.message + "。需要开放数据库权限。" + sqlHint, false);
-            // 同时在全局错误区展示更详细指引
-            showGlobalError("撤销权限不足", "当前 Supabase RLS 策略阻止了删除/更新操作。请执行以下 SQL 语句：\n" +
-                "DROP POLICY IF EXISTS \"allow_delete_own\" ON presentation_scores;\n" +
-                "DROP POLICY IF EXISTS \"allow_update_own\" ON presentation_scores;\n" +
-                "CREATE POLICY \"allow_all_delete\" ON presentation_scores FOR DELETE USING (true);\n" +
-                "CREATE POLICY \"allow_all_update\" ON presentation_scores FOR UPDATE USING (true);\n\n" +
-                "执行后刷新页面即可正常撤销。");
+            showMsg("评分已重置（原记录因安全策略无法删除，已归零处理）", true);
+        } catch (e2) {
+            showMsg("撤销失败: " + e2.message + "。请联系管理员检查数据库权限。", false);
+            return;
         }
     }
+    await loadData();
+    renderScoringGrid();
+    if (document.querySelector(".tab-btn.active").innerText.includes("进度")) renderProgress();
+}
 
     function renderScoringGrid() {
         var presented = getPresented();
         var others = presented.filter(function(m) { return m !== curRater; });
         var myScored = getMyScored();
         var grid = document.getElementById("scoringGrid");
-        var done = Object.keys(myScored).length;
+        var done = 0;
+        others.forEach(function(n) { if (myScored[n]) done++; });
         document.getElementById("progressLabel").textContent = done + " / " + others.length + " 已完成";
         var pct = others.length > 0 ? (done / others.length) * 100 : 0;
         document.getElementById("progressBar").style.width = pct + "%";
         if (!others.length) {
-            grid.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:60px;"><p>暂无可评分的同学</p><p>只有已预约并完成分享的同学才会出现</p></div>';
+            grid.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:60px;grid-column:1/-1;"><p style="font-size:1.2rem;margin-bottom:10px;">暂无可评分的同学</p><p>只有已预约并完成分享的同学才会出现在评分列表中</p><p>请前往「预约系统」完成分享预约</p></div>';
             return;
         }
         var html = "";
@@ -441,12 +540,13 @@
             var theme = getThemeName(name);
             var entry = myScored[name];
             var tag = theme ? '<span class="theme-tag theme-' + theme.id + '">' + theme.title + '</span>' : "";
+            var hint = '<div style="color:#64748b;font-size:0.75rem;margin-bottom:10px;">评分规则：总分 = 内容深度×0.7 + 表达清晰×0.3</div>';
             var action = entry
                 ? '<div style="display:flex;align-items:center;gap:8px;"><span class="scored-label">已评 ' + ((entry.content_quality||0)*0.7+(entry.presentation_skills||0)*0.3).toFixed(1) + "/" + MAX_TOTAL + '</span><button class="undo-btn" onclick="doUndo(\'' + name + '\')">撤销</button></div>'
                 : '<button class="score-btn" onclick="openModal(\'' + name + '\')">打分</button>';
             html += '<div class="score-card' + (entry ? ' scored' : '') + '">'
                 + '<div class="score-card-header"><span class="score-card-name">' + name + "</span>" + tag + "</div>"
-                + '<div class="score-card-body"><div style="color:#64748b;font-size:0.75rem;margin-bottom:10px;">总分 = 内容深度×0.7 + 表达清晰×0.3</div>' + action + "</div></div>";
+                + '<div class="score-card-body"><div>' + hint + "</div>" + action + "</div></div>";
         }
         grid.innerHTML = html;
     }
@@ -459,9 +559,11 @@
         var h = "";
         for (var i = 0; i < DIMS.length; i++) {
             var d = DIMS[i];
-            h += '<div class="dim-group"><label>' + d.label + ' <span style="color:#64748b;font-size:0.8rem;">(' + d.desc + ')</span></label>';
+            h += '<div class="dim-group"><label>' + d.label + ' <span style="color:#64748b;font-weight:400;font-size:0.8rem;">(' + d.desc + ')</span></label>';
             h += '<div class="score-selector">';
-            for (var v = 1; v <= 10; v++) h += '<div class="score-opt" data-dim="' + d.key + '" data-val="' + v + '" onclick="pickDim(\'' + d.key + '\',' + v + ')">' + v + '</div>';
+            for (var v = 1; v <= 10; v++) {
+                h += '<div class="score-opt" data-dim="' + d.key + '" data-val="' + v + '" onclick="pickDim(\'' + d.key + '\',' + v + ')">' + v + '</div>';
+            }
             h += "</div></div>";
         }
         document.getElementById("modalBody").innerHTML = h;
@@ -471,56 +573,75 @@
 
     function pickDim(key, val) {
         curDimScores[key] = val;
-        document.querySelectorAll('.score-opt[data-dim="' + key + '"]').forEach(function(el) { el.className = "score-opt" + (parseInt(el.getAttribute("data-val")) === val ? " selected" : ""); });
+        document.querySelectorAll('.score-opt[data-dim="' + key + '"]').forEach(function(el) {
+            el.className = "score-opt" + (parseInt(el.getAttribute("data-val")) === val ? " selected" : "");
+        });
     }
-    function closeModal() { document.getElementById("modalOverlay").style.display = "none"; }
+
+    function closeModal() {
+        document.getElementById("modalOverlay").style.display = "none";
+    }
 
     async function doSubmitScore() {
-        for (var i = 0; i < DIMS.length; i++) if (!curDimScores[DIMS[i].key]) { showMsg("请完成所有维度的评分", false); return; }
+        for (var i = 0; i < DIMS.length; i++) {
+            if (!curDimScores[DIMS[i].key]) {
+                showMsg("请完成所有维度的评分", false);
+                return;
+            }
+        }
         try {
             var existing = await supabaseClient.from("presentation_scores").select("id").eq("rater_name", curRater).eq("presenter_name", curPresenter);
-            var insertObj = {
-                rater_name: curRater, presenter_name: curPresenter,
-                content_quality: curDimScores.content_quality, presentation_skills: curDimScores.presentation_skills,
-                comment: document.getElementById("modalComment").value.trim() || null, scored_at: new Date().toISOString()
-            };
-            if (existing.data && existing.data.length) {
-                var upd = await supabaseClient.from("presentation_scores").update(insertObj).eq("id", existing.data[0].id);
-                if (upd.error) throw upd.error;
-                showMsg("评分更新成功！", true);
-            } else {
-                var ins = await supabaseClient.from("presentation_scores").insert([insertObj]);
-                if (ins.error) throw ins.error;
-                showMsg("评分提交成功！", true);
+            if (existing.data && existing.data.length > 0) {
+                showMsg("您已经给该同学打过分了", false);
+                return;
             }
+            var totalScore = Math.round(curDimScores.content_quality * 0.7 * 10 + curDimScores.presentation_skills * 0.3 * 10) / 10;
+            var insertObj = {
+                rater_name: curRater,
+                presenter_name: curPresenter,
+                content_quality: curDimScores.content_quality,
+                presentation_skills: curDimScores.presentation_skills,
+                score: totalScore,
+                comment: document.getElementById("modalComment").value.trim() || null,
+                scored_at: new Date().toISOString()
+            };
+            var result = await supabaseClient.from("presentation_scores").insert([insertObj]);
+            if (result.error) throw result.error;
+            showMsg("评分提交成功！", true);
             closeModal();
             await loadData();
             renderScoringGrid();
-            if (document.querySelector(".tab-btn.active") && document.querySelector(".tab-btn.active").innerText.includes("进度")) renderProgress();
-        } catch (e) { showMsg("提交失败: " + e.message, false); }
+            if (document.querySelector(".tab-btn.active").innerText.includes("进度")) renderProgress();
+            if (document.querySelector(".tab-btn.active").innerText.includes("排名")) renderRanking("all");
+        } catch (e) {
+            showMsg("提交失败: " + e.message, false);
+        }
     }
 
-    function renderProgress() {
+    function renderProgress() { /* 复用原逻辑，根据现有scores变量渲染矩阵 */
         var presented = getPresented();
         var pc = presented.length;
-        var totalCombos = pc * (MEMBERS.length - 1);
-        var validScoresCount = scores.filter(function(s) { return presented.indexOf(s.presenter_name) >= 0 && isValidScore(s); }).length;
-        var pct = totalCombos > 0 ? ((validScoresCount / totalCombos) * 100).toFixed(1) : "0";
+        var tp = pc * (MEMBERS.length - 1);
+        var td = scores.filter(function(s) { return presented.indexOf(s.presenter_name) >= 0; }).length;
+        var pct = tp > 0 ? ((td / tp) * 100).toFixed(1) : "0";
         document.getElementById("progStats").innerHTML =
             '<div class="stat-box"><div class="val">' + MEMBERS.length + '</div><div class="label">参与人数</div></div>' +
             '<div class="stat-box"><div class="val">' + pc + '</div><div class="label">已分享</div></div>' +
-            '<div class="stat-box"><div class="val">' + validScoresCount + '</div><div class="label">有效评分</div></div>' +
+            '<div class="stat-box"><div class="val">' + td + '</div><div class="label">已完成评分</div></div>' +
             '<div class="stat-box"><div class="val">' + pct + '%</div><div class="label">完成率</div></div>';
-        var h = '<table class="matrix-table"><thead><th>评分人 → 被评人</th>';
+        var h = '<table class="matrix-table"><thead><tr><th>评分人 → 被评人</th>';
         presented.sort().forEach(function(m) { h += "<th>" + m + "</th>"; });
-        h += "</thead><tbody>";
+        h += "</tr></thead><tbody>";
         MEMBERS.forEach(function(rater) {
-            h += '<td><td class="name-cell">' + rater + '</td>';
+            h += '<tr><td class="name-cell">' + rater + "</td>";
             presented.forEach(function(presenter) {
                 if (rater === presenter) h += '<td class="cell-self">-</td>';
-                else { var done = scores.some(function(s) { return s.rater_name === rater && s.presenter_name === presenter && isValidScore(s); }); h += '<td class="' + (done ? "cell-done" : "cell-pending") + '">' + (done ? "✓" : "○") + '</td>'; }
+                else {
+                    var done = scores.some(function(s) { return s.rater_name === rater && s.presenter_name === presenter; });
+                    h += '<td class="' + (done ? "cell-done" : "cell-pending") + '">' + (done ? "✓" : "○") + "</td>";
+                }
             });
-            h += "</td>";
+            h += "</tr>";
         });
         h += "</tbody></table>";
         document.getElementById("progMatrix").innerHTML = h;
@@ -530,7 +651,10 @@
         THEMES.forEach(function(theme) {
             var members = groups[theme.id] || [];
             if(!members.length) return;
-            var ms = members.map(function(name) { var avgObj = getPresenterAvg(name); return avgObj ? parseFloat(avgObj.avg) : 0; }).filter(function(v){ return v>0;});
+            var ms = members.map(function(name) {
+                var avgObj = getPresenterAvg(name);
+                return avgObj ? parseFloat(avgObj.avg) : 0;
+            }).filter(function(v){ return v>0;});
             var avg = ms.length ? (ms.reduce(function(a,b){return a+b;},0)/ms.length).toFixed(1) : "--";
             th += '<div class="rank-item"><span class="theme-tag theme-' + theme.id + '" style="margin-right:15px;">' + theme.title + "</span>"
                 + '<span style="color:#94a3b8;">' + members.length + "人</span>"
@@ -543,12 +667,21 @@
     function renderRanking(filterTheme) {
         var data = {};
         var presented = getPresented();
-        presented.forEach(function(name) { var avgObj = getPresenterAvg(name); if(avgObj) data[name] = { avg: parseFloat(avgObj.avg), count: avgObj.count, theme_id: themeMap[name] || 0, dims: avgObj.dims }; });
+        presented.forEach(function(name) {
+            var avgObj = getPresenterAvg(name);
+            if(!avgObj) return;
+            data[name] = {
+                avg: parseFloat(avgObj.avg),
+                count: avgObj.count,
+                theme_id: themeMap[name] || 0,
+                dims: avgObj.dims
+            };
+        });
         var ranking = Object.keys(data).map(function(k){ return { name:k, avg:data[k].avg, count:data[k].count, theme_id:data[k].theme_id, dims:data[k].dims }; });
         if(filterTheme !== "all") ranking = ranking.filter(function(r){ return r.theme_id === parseInt(filterTheme); });
         ranking.sort(function(a,b){ return b.avg - a.avg; });
         var listDiv = document.getElementById("rankList");
-        if(!ranking.length) listDiv.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:30px;">暂无有效评分数据</div>';
+        if(!ranking.length) listDiv.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:30px;">暂无评分数据</div>';
         else {
             var h = "";
             for(var i=0;i<ranking.length;i++) {
@@ -580,9 +713,13 @@
 
     document.getElementById("modalOverlay").addEventListener("click", function(e) { if(e.target===this) closeModal(); });
     document.addEventListener("DOMContentLoaded", async function() {
-        if(!initSupabase()) return;
+        var ok = initSupabase();
+        if(!ok) return;
         var connTest = await testBaseConnection();
-        if(!connTest) { showGlobalError("数据库连接失败", "请检查网络或 Supabase 配置"); return; }
+        if(!connTest) {
+            showGlobalError("基础数据库连接失败", "无法连接到 Supabase 数据库，请检查网络或确认 URL/Key 正确。\n当前配置：\nURL: "+localStorage.getItem("supabaseUrl")+"\nKey: "+localStorage.getItem("supabaseKey"));
+            return;
+        }
         await loadData();
         var dl = document.getElementById("nameList");
         MEMBERS.forEach(function(m){ var o=document.createElement("option"); o.value=m; dl.appendChild(o); });
