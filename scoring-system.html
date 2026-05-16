@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<!-- version13 - 修复撤销功能，基于主键ID删除评分记录 -->
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 拓边实验室 - 讲演打分系统（可撤销评分）</title>
+    <title>AI 拓边实验室 - 讲演打分系统</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -13,8 +12,7 @@
         .header { text-align: center; margin-bottom: 40px; padding: 30px; background: rgba(30, 41, 59, 0.8); border-radius: 20px; border: 1px solid rgba(148, 163, 184, 0.2); }
         .header h1 { font-size: 2.5rem; background: linear-gradient(90deg, #60a5fa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
         .nav-links { margin-top: 20px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
-        .nav-btn { padding: 10px 20px; background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; color: #60a5fa; text-decoration: none; font-weight: 600; transition: 0.2s; }
-        .nav-btn:hover { background: rgba(96, 165, 250, 0.2); }
+        .nav-btn { padding: 10px 20px; background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; color: #60a5fa; text-decoration: none; font-weight: 600; }
 
         .tabs { display: flex; gap: 5px; margin-bottom: 30px; background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 5px; }
         .tab-btn { flex: 1; padding: 12px; text-align: center; background: transparent; border: none; color: #94a3b8; border-radius: 10px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all 0.2s; }
@@ -23,12 +21,11 @@
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
 
-        .name-input { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; margin-bottom: 30px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .name-input { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; margin-bottom: 30px; display: flex; gap: 15px; align-items: center; }
         .name-input input { flex: 1; padding: 12px; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(148, 163, 184, 0.2); border-radius: 8px; color: #f1f5f9; font-size: 1rem; }
         .name-input button { padding: 12px 30px; background: linear-gradient(90deg, #3b82f6, #2563eb); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; white-space: nowrap; }
-        .current-user { background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; flex-wrap: wrap; gap: 10px; }
-        .current-user button { padding: 6px 15px; background: transparent; border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 6px; color: #ef4444; cursor: pointer; font-size: 0.85rem; transition: 0.2s; }
-        .current-user button:hover { background: rgba(239, 68, 68, 0.1); }
+        .current-user { background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; }
+        .current-user button { padding: 6px 15px; background: transparent; border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 6px; color: #ef4444; cursor: pointer; font-size: 0.85rem; }
 
         .progress-bar { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 20px 25px; margin-bottom: 25px; }
         .progress-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; color: #94a3b8; }
@@ -38,30 +35,29 @@
         .scoring-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 30px; }
         .score-card { background: rgba(30, 41, 59, 0.9); border-radius: 12px; padding: 20px; border: 2px solid rgba(148, 163, 184, 0.1); transition: all 0.2s; }
         .score-card.scored { border-color: rgba(16, 185, 129, 0.3); opacity: 0.85; }
-        .score-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+        .score-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .score-card-name { font-weight: 600; font-size: 1.1rem; }
         .theme-tag { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
         .theme-1 { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
         .theme-2 { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
         .theme-3 { background: rgba(16, 185, 129, 0.2); color: #34d399; }
         .theme-4 { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-        .score-card-body { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+        .score-card-body { display: flex; justify-content: space-between; align-items: center; }
         .score-card-avg { font-size: 1.5rem; font-weight: 700; background: linear-gradient(90deg, #60a5fa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .score-card-count { color: #94a3b8; font-size: 0.85rem; }
-        .score-btn { padding: 8px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; font-size: 0.9rem; background: linear-gradient(90deg, #3b82f6, #2563eb); color: white; transition: 0.2s; }
-        .score-btn:hover { opacity: 0.9; }
+        .score-btn { padding: 8px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; font-size: 0.9rem; background: linear-gradient(90deg, #3b82f6, #2563eb); color: white; }
         .scored-label { padding: 8px 20px; border-radius: 8px; border: none; font-weight: 600; font-size: 0.9rem; background: rgba(16, 185, 129, 0.2); color: #10b981; }
-        .undo-btn { padding: 8px 20px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); color: #ef4444; font-weight: 600; cursor: pointer; font-size: 0.9rem; transition: 0.2s; }
+        .undo-btn { padding: 8px 20px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.1); color: #ef4444; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
         .undo-btn:hover { background: rgba(239, 68, 68, 0.2); }
 
         .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); display: none; align-items: center; justify-content: center; z-index: 1000; }
         .modal-overlay.active { display: flex; }
-        .modal { background: #1e293b; border-radius: 20px; padding: 30px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(148, 163, 184, 0.2); }
-        .modal h3 { margin-bottom: 20px; font-size: 1.3rem; color: #60a5fa; }
+        .modal { background: #1e293b; border-radius: 20px; padding: 30px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal h3 { margin-bottom: 20px; font-size: 1.3rem; }
         .dim-group { margin-bottom: 15px; }
         .dim-group label { display: block; margin-bottom: 8px; color: #cbd5e1; font-weight: 500; }
-        .dim-group .score-selector { display: flex; gap: 8px; flex-wrap: wrap; }
-        .dim-group .score-opt { flex: 1; min-width: 40px; padding: 10px; text-align: center; border-radius: 8px; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(148, 163, 184, 0.2); color: #94a3b8; cursor: pointer; transition: all 0.15s; }
+        .dim-group .score-selector { display: flex; gap: 8px; }
+        .dim-group .score-opt { flex: 1; padding: 10px; text-align: center; border-radius: 8px; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(148, 163, 184, 0.2); color: #94a3b8; cursor: pointer; transition: all 0.15s; }
         .dim-group .score-opt.selected { border-color: #3b82f6; background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
         .dim-group .score-opt:hover { border-color: rgba(96, 165, 250, 0.5); }
         .modal .comment-input { width: 100%; padding: 10px; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(148, 163, 184, 0.2); border-radius: 8px; color: #f1f5f9; margin-bottom: 20px; }
@@ -71,16 +67,16 @@
         .btn-submit { background: linear-gradient(90deg, #3b82f6, #2563eb); color: white; }
 
         .progress-matrix { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; margin-bottom: 25px; overflow-x: auto; }
-        .matrix-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-        .matrix-table th, .matrix-table td { padding: 8px; text-align: center; }
-        .matrix-table th { background: rgba(15, 23, 42, 0.8); color: #94a3b8; position: sticky; top: 0; }
-        .matrix-table td.cell-done { background: rgba(16, 185, 129, 0.3); color: #10b981; font-weight: bold; }
+        .matrix-table { width: 100%; border-collapse: collapse; }
+        .matrix-table th, .matrix-table td { padding: 8px; text-align: center; font-size: 0.8rem; }
+        .matrix-table th { background: rgba(15, 23, 42, 0.8); color: #94a3b8; }
+        .matrix-table td.cell-done { background: rgba(16, 185, 129, 0.3); color: #10b981; }
         .matrix-table td.cell-self { background: rgba(148, 163, 184, 0.1); color: #475569; }
         .matrix-table td.cell-pending { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
         .matrix-table td.name-cell { text-align: left; background: rgba(15, 23, 42, 0.8); color: #e2e8f0; font-weight: 500; white-space: nowrap; }
 
         .ranking-section { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; margin-bottom: 25px; }
-        .ranking-section h3 { margin-bottom: 20px; font-size: 1.2rem; color: #60a5fa; }
+        .ranking-section h3 { margin-bottom: 20px; font-size: 1.2rem; }
         .rank-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid rgba(148, 163, 184, 0.1); flex-wrap: wrap; gap: 8px; }
         .rank-pos { width: 35px; font-weight: 700; font-size: 1.1rem; }
         .rank-pos.top1 { color: #fbbf24; }
@@ -90,10 +86,10 @@
         .rank-theme { margin-right: 10px; }
         .rank-score { font-weight: 700; color: #60a5fa; min-width: 70px; text-align: right; }
         .rank-count { color: #94a3b8; margin-left: 5px; font-size: 0.85rem; }
-        .rank-details { font-size: 0.8rem; color: #94a3b8; margin-left: 5px; }
+        .rank-details { font-size: 0.8rem; color: #94a3b8; margin-left: 5px; word-break: keep-all; }
 
         .theme-filter { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .theme-filter-btn { padding: 8px 20px; border-radius: 20px; border: 1px solid rgba(148, 163, 184, 0.2); background: transparent; color: #94a3b8; cursor: pointer; font-size: 0.9rem; transition: 0.2s; }
+        .theme-filter-btn { padding: 8px 20px; border-radius: 20px; border: 1px solid rgba(148, 163, 184, 0.2); background: transparent; color: #94a3b8; cursor: pointer; font-size: 0.9rem; }
         .theme-filter-btn.active { background: rgba(59, 130, 246, 0.2); border-color: #3b82f6; color: #60a5fa; }
 
         .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 25px; }
@@ -101,14 +97,13 @@
         .stat-box .val { font-size: 2rem; font-weight: 700; background: linear-gradient(90deg, #60a5fa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .stat-box .label { color: #94a3b8; font-size: 0.85rem; margin-top: 5px; }
 
-        .msg-box { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 8px; z-index: 2000; display: none; animation: slideDown 0.2s ease; }
+        .msg-box { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 8px; z-index: 2000; display: none; }
         .msg-ok { background: rgba(16, 185, 129, 0.9); color: white; }
         .msg-err { background: rgba(239, 68, 68, 0.9); color: white; }
-        @keyframes slideDown { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
         .detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-top: 20px; }
         .detail-card { background: rgba(15, 23, 42, 0.8); border-radius: 10px; padding: 15px; }
-        .detail-card h4 { margin-bottom: 8px; color: #60a5fa; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .detail-card h4 { margin-bottom: 8px; color: #60a5fa; }
         .detail-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 3px 0; }
         .detail-row .dl { color: #94a3b8; }
         .detail-row .dv { color: #e2e8f0; font-weight: 500; }
@@ -124,7 +119,7 @@
     <div class="container">
         <div class="header">
             <h1>AI 拓边实验室 - 讲演打分系统</h1>
-            <p>每位同学需对其他已分享的同学进行多维度评分（内容深度×0.7 + 表达清晰×0.3） | 撤销基于记录ID彻底删除</p>
+            <p>每位同学需对其他已分享的同学进行多维度评分</p>
             <div class="nav-links">
                 <a href="index.html" class="nav-btn">🏠 返回报名系统</a>
                 <a href="presentation-booking.html" class="nav-btn">📅 进入预约系统</a>
@@ -142,7 +137,7 @@
         <div id="tab-scoring" class="tab-panel active">
             <div id="nameSection">
                 <div class="name-input">
-                    <input type="text" id="raterInput" placeholder="请输入您的姓名" list="nameList" autocomplete="off">
+                    <input type="text" id="raterInput" placeholder="请输入您的姓名" list="nameList">
                     <datalist id="nameList"></datalist>
                     <button onclick="startScoring()">开始打分</button>
                 </div>
@@ -197,7 +192,7 @@
         </div>
 
         <div class="footer">
-            <p>AI 拓边实验室 - 讲演打分系统 | 基于 Supabase + GitHub Pages | 撤销功能 v2 (基于ID删除)</p>
+            <p>AI 拓边实验室 - 讲演打分系统 | 基于 Supabase + GitHub Pages</p>
             <p>&copy; 2026 算法团队内部活动</p>
         </div>
     </div>
@@ -217,7 +212,7 @@
     <div class="msg-box" id="msgBox"></div>
 
     <script>
-    // 成员列表与主题定义（与报名系统保持一致）
+    // 成员列表与主题定义
     var PRESENTERS = ["昌胜骐","陈华炎","陈玉林","成余刚","贺焱","胡金林","胡一帆","计国锋","蒋伟","孔超","刘健","刘煜","栾梦杰","闵于","钱建军","王昊俣","王省超","吴之祥","张文宇","周伟"];
     var RATER_ONLY = ["柳青松","郭文钰","朱松","傅鑫榕","周铭宇"];
     var MEMBERS = PRESENTERS.concat(RATER_ONLY);
@@ -234,14 +229,19 @@
     var MAX_TOTAL = 10;
 
     var PRESENTATION_WEEKS = [
-        { id: 1, date: '2026-04-23' }, { id: 2, date: '2026-05-07' }, { id: 3, date: '2026-05-14' },
-        { id: 4, date: '2026-05-21' }, { id: 5, date: '2026-05-28' }, { id: 6, date: '2026-06-04' },
-        { id: 7, date: '2026-06-11' }, { id: 8, date: '2026-06-18' }
+        { id: 1, date: '2026-04-23' },
+        { id: 2, date: '2026-05-07' },
+        { id: 3, date: '2026-05-14' },
+        { id: 4, date: '2026-05-21' },
+        { id: 5, date: '2026-05-28' },
+        { id: 6, date: '2026-06-04' },
+        { id: 7, date: '2026-06-11' },
+        { id: 8, date: '2026-06-18' }
     ];
 
     var supabaseClient = null;
     var curRater = "";
-    var scores = [];       // 每条记录包含 id, rater_name, presenter_name, content_quality, presentation_skills, ...
+    var scores = [];
     var bookings = [];
     var themeMap = {};
     var curPresenter = "";
@@ -253,16 +253,16 @@
         el.textContent = text;
         el.className = "msg-box " + (ok ? "msg-ok" : "msg-err");
         el.style.display = "block";
-        setTimeout(function() { el.style.display = "none"; }, 3500);
+        setTimeout(function() { el.style.display = "none"; }, 4000);
     }
 
     function showRankingDisabled() {
-        showMsg("排名功能将在所有同学完成分享后开放，敬请期待", false);
+        showMsg("排名功能暂时不可用，等所有人完成分享后再开放", false);
     }
 
     function showGlobalError(title, details) {
         var area = document.getElementById("globalErrorArea");
-        area.innerHTML = '<strong>⚠️ ' + title + '</strong><br><small>请根据以下信息联系管理员</small><pre>' + details + '</pre>';
+        area.innerHTML = '<strong>⚠️ ' + title + '</strong><br><small>请根据以下信息联系管理员或按照指引操作</small><pre>' + details + '</pre>';
         area.style.display = "block";
     }
 
@@ -272,7 +272,7 @@
         area.innerHTML = '';
     }
 
-    // 初始化 Supabase (与 index.html 完全相同的配置)
+    // 与index.html完全一致的配置加载逻辑
     function initSupabase() {
         try {
             var url = localStorage.getItem("supabaseUrl");
@@ -297,41 +297,76 @@
         }
     }
 
+    // 测试基础连接 (使用 registrations 表，该表在报名系统中确认可用)
     async function testBaseConnection() {
         if (!supabaseClient) return false;
         try {
             var { error } = await supabaseClient.from("registrations").select("id", { count: "exact", head: true });
-            if (error) return false;
+            if (error) {
+                console.warn("基础连接测试失败", error);
+                return false;
+            }
             return true;
-        } catch (e) { return false; }
+        } catch (e) {
+            return false;
+        }
     }
 
-    // 加载预约 + 评分数据
+    // 核心数据加载
     async function loadData() {
-        if (!supabaseClient) return false;
+        if (!supabaseClient) {
+            showMsg("数据库未初始化", false);
+            return false;
+        }
         try {
+            // 加载预约数据
             var r1 = await supabaseClient.from("presentation_bookings").select("*").order("week_id").order("slot_number");
             if (r1.error) {
                 if (r1.error.code === "42P01") {
-                    showGlobalError("缺少数据表: presentation_bookings", "请创建 presentation_bookings 表（包含 id, week_id, slot_number, participant_name, theme_id 等字段）并启用 RLS。");
-                } else { showMsg("加载预约表失败: " + r1.error.message, false); }
+                    showGlobalError("缺少数据表: presentation_bookings", 
+                        "请在你的 Supabase SQL 编辑器中执行以下语句创建表：\n\n" +
+                        "CREATE TABLE presentation_bookings (\n  id SERIAL PRIMARY KEY,\n  week_id INT NOT NULL,\n  slot_number INT NOT NULL,\n  participant_name TEXT NOT NULL,\n  theme_id INT,\n  booked_at TIMESTAMP DEFAULT NOW()\n);\n\n" +
+                        "ALTER TABLE presentation_bookings ENABLE ROW LEVEL SECURITY;\n" +
+                        "CREATE POLICY \"允许所有人查看\" ON presentation_bookings FOR SELECT USING (true);\n" +
+                        "CREATE POLICY \"允许所有人插入\" ON presentation_bookings FOR INSERT WITH CHECK (true);\n" +
+                        "CREATE POLICY \"允许所有人更新删除\" ON presentation_bookings FOR UPDATE USING (true);");
+                } else {
+                    showMsg("加载预约表失败: " + r1.error.message, false);
+                }
                 return false;
             }
             bookings = r1.data || [];
 
+            // 加载评分数据
             var r2 = await supabaseClient.from("presentation_scores").select("*");
             if (r2.error) {
                 if (r2.error.code === "42P01") {
-                    showGlobalError("缺少数据表: presentation_scores", "请创建 presentation_scores 表，包含 id SERIAL PRIMARY KEY, rater_name TEXT, presenter_name TEXT, content_quality INT, presentation_skills INT, comment TEXT, scored_at TIMESTAMP。并设置合适的 RLS 策略允许增删改查。");
-                } else { showMsg("加载评分表失败: " + r2.error.message, false); }
+                    showGlobalError("缺少数据表: presentation_scores", 
+                        "请在你的 Supabase SQL 编辑器中执行以下语句创建表：\n\n" +
+                        "CREATE TABLE presentation_scores (\n  id SERIAL PRIMARY KEY,\n  rater_name TEXT NOT NULL,\n  presenter_name TEXT NOT NULL,\n  content_quality INT DEFAULT 0,\n  presentation_skills INT DEFAULT 0,\n  comment TEXT,\n  scored_at TIMESTAMP DEFAULT NOW()\n);\n\n" +
+                        "ALTER TABLE presentation_scores ENABLE ROW LEVEL SECURITY;\n" +
+                        "CREATE POLICY \"允许所有人查看评分\" ON presentation_scores FOR SELECT USING (true);\n" +
+                        "CREATE POLICY \"允许所有人提交评分\" ON presentation_scores FOR INSERT WITH CHECK (true);\n" +
+                        "CREATE POLICY \"允许所有人更新删除\" ON presentation_scores FOR DELETE USING (true);\n\n" +
+                        "-- 可选索引\nCREATE INDEX idx_scores_presenter ON presentation_scores(presenter_name);\nCREATE INDEX idx_scores_rater ON presentation_scores(rater_name);");
+                } else {
+                    showMsg("加载评分表失败: " + r2.error.message, false);
+                }
                 return false;
             }
             scores = r2.data || [];
 
-            // 构建 theme 映射
+            // 构建 presenter -> theme_id 映射 (从预约表)
             themeMap = {};
-            bookings.forEach(function(b) { if (b.theme_id) themeMap[b.participant_name] = b.theme_id; });
-            scores.forEach(function(s) { if (s.presenter_theme && !themeMap[s.presenter_name]) themeMap[s.presenter_name] = s.presenter_theme; });
+            bookings.forEach(function(b) {
+                if (b.theme_id) themeMap[b.participant_name] = b.theme_id;
+            });
+            // 兼容：如果评分表中有theme信息但预约表缺失，也可以补充
+            scores.forEach(function(s) {
+                if (s.presenter_theme && !themeMap[s.presenter_name]) {
+                    themeMap[s.presenter_name] = s.presenter_theme;
+                }
+            });
 
             hideGlobalError();
             isDbReady = true;
@@ -344,30 +379,36 @@
     }
 
     function getPresented() {
+        var s = new Set();
         var today = new Date().toISOString().slice(0, 10);
-        var presentedSet = new Set();
         bookings.forEach(function(b) {
             if (!b.participant_name) return;
             var weekDate = '';
             for (var i = 0; i < PRESENTATION_WEEKS.length; i++) {
-                if (PRESENTATION_WEEKS[i].id === b.week_id) { weekDate = PRESENTATION_WEEKS[i].date; break; }
+                if (PRESENTATION_WEEKS[i].id === b.week_id) {
+                    weekDate = PRESENTATION_WEEKS[i].date;
+                    break;
+                }
             }
-            if (weekDate <= today) presentedSet.add(b.participant_name);
+            if (weekDate <= today) s.add(b.participant_name);
         });
-        return Array.from(presentedSet);
+        return Array.from(s);
     }
 
-    function getMyScoredMap() {
-        var map = {};
-        scores.forEach(function(s) { if (s.rater_name === curRater) map[s.presenter_name] = s; });
-        return map;
+    function getMyScored() {
+        var m = {};
+        scores.forEach(function(s) {
+            if (s.rater_name === curRater) m[s.presenter_name] = s;
+        });
+        return m;
     }
 
+    // 计算某位被评人的加权平均总分和维度均分
     function getPresenterAvg(name) {
         var ss = scores.filter(function(s) { return s.presenter_name === name; });
         if (!ss.length) return null;
         var totalSum = 0;
-        var dimSum = { content_quality: 0, presentation_skills: 0 };
+        var dimSum = { content_quality:0, presentation_skills:0 };
         ss.forEach(function(s) {
             var c = s.content_quality || 0;
             var p = s.presentation_skills || 0;
@@ -376,7 +417,14 @@
             dimSum.presentation_skills += p;
         });
         var cnt = ss.length;
-        return { avg: (totalSum / cnt).toFixed(1), count: cnt, dims: { content_quality: (dimSum.content_quality / cnt).toFixed(1), presentation_skills: (dimSum.presentation_skills / cnt).toFixed(1) } };
+        return {
+            avg: (totalSum / cnt).toFixed(1),
+            count: cnt,
+            dims: {
+                content_quality: (dimSum.content_quality / cnt).toFixed(1),
+                presentation_skills: (dimSum.presentation_skills / cnt).toFixed(1)
+            }
+        };
     }
 
     function getThemeName(name) {
@@ -386,8 +434,13 @@
     }
 
     function switchTab(tab) {
-        document.querySelectorAll(".tab-btn").forEach(function(t, i) { var tabs = ["scoring", "progress", "ranking"]; t.className = "tab-btn" + (tabs[i] === tab ? " active" : ""); });
-        document.querySelectorAll(".tab-panel").forEach(function(p) { p.style.display = "none"; });
+        document.querySelectorAll(".tab-btn").forEach(function(t, i) {
+            var tabs = ["scoring", "progress", "ranking"];
+            t.className = "tab-btn" + (tabs[i] === tab ? " active" : "");
+        });
+        document.querySelectorAll(".tab-panel").forEach(function(p) {
+            p.style.display = "none";
+        });
         var panel = document.getElementById("tab-" + tab);
         if (panel) panel.style.display = "block";
         if (tab === "progress") renderProgress();
@@ -396,12 +449,15 @@
 
     async function startScoring() {
         var name = document.getElementById("raterInput").value.trim();
-        if (!MEMBERS.includes(name)) { showMsg("请输入有效的GNSS算法研发部成员姓名", false); return; }
+        if (!MEMBERS.includes(name)) {
+            showMsg("请输入有效的GNSS算法研发部成员姓名", false);
+            return;
+        }
         curRater = name;
         document.getElementById("nameSection").style.display = "none";
         document.getElementById("scoringArea").style.display = "block";
         document.getElementById("raterDisplay").textContent = name;
-        await loadData();
+        await loadData();  // 确保最新数据
         renderScoringGrid();
     }
 
@@ -412,57 +468,72 @@
         document.getElementById("raterInput").value = "";
     }
 
-    // ==================== 核心修复：基于 ID 撤销评分（参考报名系统）====================
-    async function doUndo(presenterName) {
-        if (!confirm("确定要撤销对「" + presenterName + "」的评分吗？撤销后可以重新打分。")) return;
-        // 从当前 scores 数组中查找该评分记录的唯一 ID (rater_name = curRater, presenter_name = presenterName)
-        const record = scores.find(s => s.rater_name === curRater && s.presenter_name === presenterName);
-        if (!record) {
-            showMsg("未找到对应的评分记录，可能已经撤销过，请刷新页面重试", false);
+    async function doUndo(name) {
+        if (!confirm("确定要撤销对「" + name + "」的评分吗？")) return;
+        try {
+            // 1. 参考报名系统，先查询出该条具体的评分记录 ID
+            var check = await supabaseClient
+                .from("presentation_scores")
+                .select("id")
+                .eq("rater_name", curRater)
+                .eq("presenter_name", name);
+
+            if (check.error) throw check.error;
+
+            if (check.data && check.data.length > 0) {
+                var scoreId = check.data[0].id;
+
+                // 2. 像报名系统一样，严格通过唯一的主键 id 进行物理删除
+                var { error } = await supabaseClient
+                    .from("presentation_scores")
+                    .delete()
+                    .eq("id", scoreId);
+
+                if (error) throw error;
+
+                showMsg("评分已彻底撤销", true);
+            } else {
+                showMsg("未找到相应的评分记录", false);
+                return;
+            }
+        } catch (e) {
+            console.error("撤销评分失败:", e);
+            showMsg("撤销失败: " + e.message, false);
             return;
         }
-        const recordId = record.id;
-        try {
-            const { error } = await supabaseClient.from("presentation_scores").delete().eq("id", recordId);
-            if (error) throw error;
-            showMsg(`已成功撤销对「${presenterName}」的评分`, true);
-            // 重新加载最新数据并刷新界面
-            await loadData();
-            renderScoringGrid();
-            if (document.querySelector(".tab-btn.active").innerText.includes("进度")) renderProgress();
-        } catch (err) {
-            console.error("撤销失败:", err);
-            showMsg(`撤销失败: ${err.message}。请检查数据库 DELETE 策略，确保 presentation_scores 表允许基于 id 删除。`, false);
+
+        // 3. 重新加载最新数据，恢复到待打分的状态
+        await loadData();
+        renderScoringGrid();
+        if (document.querySelector(".tab-btn.active").innerText.includes("进度")) {
+            renderProgress();
         }
     }
 
     function renderScoringGrid() {
         var presented = getPresented();
         var others = presented.filter(function(m) { return m !== curRater; });
-        var myScoredMap = getMyScoredMap();
+        var myScored = getMyScored();
         var grid = document.getElementById("scoringGrid");
-        var done = Object.keys(myScoredMap).filter(name => others.includes(name)).length;
+        var done = 0;
+        others.forEach(function(n) { if (myScored[n]) done++; });
         document.getElementById("progressLabel").textContent = done + " / " + others.length + " 已完成";
         var pct = others.length > 0 ? (done / others.length) * 100 : 0;
         document.getElementById("progressBar").style.width = pct + "%";
         if (!others.length) {
-            grid.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:60px;grid-column:1/-1;"><p style="font-size:1.2rem;margin-bottom:10px;">暂无可评分的同学</p><p>只有已预约并完成分享的同学才会出现</p><p>请前往「预约系统」完成分享预约</p></div>';
+            grid.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:60px;grid-column:1/-1;"><p style="font-size:1.2rem;margin-bottom:10px;">暂无可评分的同学</p><p>只有已预约并完成分享的同学才会出现在评分列表中</p><p>请前往「预约系统」完成分享预约</p></div>';
             return;
         }
         var html = "";
         for (var i = 0; i < others.length; i++) {
             var name = others[i];
             var theme = getThemeName(name);
-            var entry = myScoredMap[name];
+            var entry = myScored[name];
             var tag = theme ? '<span class="theme-tag theme-' + theme.id + '">' + theme.title + '</span>' : "";
             var hint = '<div style="color:#64748b;font-size:0.75rem;margin-bottom:10px;">评分规则：总分 = 内容深度×0.7 + 表达清晰×0.3</div>';
-            var action = "";
-            if (entry) {
-                var totalScore = ((entry.content_quality||0) * 0.7 + (entry.presentation_skills||0) * 0.3).toFixed(1);
-                action = '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span class="scored-label">已评 ' + totalScore + "/" + MAX_TOTAL + '</span><button class="undo-btn" onclick="doUndo(\'' + name.replace(/'/g, "\\'") + '\')">撤销</button></div>';
-            } else {
-                action = '<button class="score-btn" onclick="openModal(\'' + name.replace(/'/g, "\\'") + '\')">打分</button>';
-            }
+            var action = entry
+                ? '<div style="display:flex;align-items:center;gap:8px;"><span class="scored-label">已评 ' + ((entry.content_quality||0)*0.7+(entry.presentation_skills||0)*0.3).toFixed(1) + "/" + MAX_TOTAL + '</span><button class="undo-btn" onclick="doUndo(\'' + name + '\')">撤销</button></div>'
+                : '<button class="score-btn" onclick="openModal(\'' + name + '\')">打分</button>';
             html += '<div class="score-card' + (entry ? ' scored' : '') + '">'
                 + '<div class="score-card-header"><span class="score-card-name">' + name + "</span>" + tag + "</div>"
                 + '<div class="score-card-body"><div>' + hint + "</div>" + action + "</div></div>";
@@ -497,21 +568,30 @@
         });
     }
 
-    function closeModal() { document.getElementById("modalOverlay").style.display = "none"; }
+    function closeModal() {
+        document.getElementById("modalOverlay").style.display = "none";
+    }
 
     async function doSubmitScore() {
         for (var i = 0; i < DIMS.length; i++) {
-            if (!curDimScores[DIMS[i].key]) { showMsg("请完成所有维度的评分", false); return; }
+            if (!curDimScores[DIMS[i].key]) {
+                showMsg("请完成所有维度的评分", false);
+                return;
+            }
         }
         try {
             var existing = await supabaseClient.from("presentation_scores").select("id").eq("rater_name", curRater).eq("presenter_name", curPresenter);
-            if (existing.data && existing.data.length > 0) { showMsg("您已经给该同学打过分了，不可重复提交", false); return; }
-            var totalScore = (curDimScores.content_quality * 0.7 + curDimScores.presentation_skills * 0.3).toFixed(1);
+            if (existing.data && existing.data.length > 0) {
+                showMsg("您已经给该同学打过分了", false);
+                return;
+            }
+            var totalScore = Math.round(curDimScores.content_quality * 0.7 * 10 + curDimScores.presentation_skills * 0.3 * 10) / 10;
             var insertObj = {
                 rater_name: curRater,
                 presenter_name: curPresenter,
                 content_quality: curDimScores.content_quality,
                 presentation_skills: curDimScores.presentation_skills,
+                score: totalScore,
                 comment: document.getElementById("modalComment").value.trim() || null,
                 scored_at: new Date().toISOString()
             };
@@ -522,10 +602,13 @@
             await loadData();
             renderScoringGrid();
             if (document.querySelector(".tab-btn.active").innerText.includes("进度")) renderProgress();
-        } catch (e) { showMsg("提交失败: " + e.message, false); }
+            if (document.querySelector(".tab-btn.active").innerText.includes("排名")) renderRanking("all");
+        } catch (e) {
+            showMsg("提交失败: " + e.message, false);
+        }
     }
 
-    function renderProgress() {
+    function renderProgress() { /* 复用原逻辑，根据现有scores变量渲染矩阵 */
         var presented = getPresented();
         var pc = presented.length;
         var tp = pc * (MEMBERS.length - 1);
@@ -558,7 +641,10 @@
         THEMES.forEach(function(theme) {
             var members = groups[theme.id] || [];
             if(!members.length) return;
-            var ms = members.map(function(name) { var avgObj = getPresenterAvg(name); return avgObj ? parseFloat(avgObj.avg) : 0; }).filter(function(v){ return v>0;});
+            var ms = members.map(function(name) {
+                var avgObj = getPresenterAvg(name);
+                return avgObj ? parseFloat(avgObj.avg) : 0;
+            }).filter(function(v){ return v>0;});
             var avg = ms.length ? (ms.reduce(function(a,b){return a+b;},0)/ms.length).toFixed(1) : "--";
             th += '<div class="rank-item"><span class="theme-tag theme-' + theme.id + '" style="margin-right:15px;">' + theme.title + "</span>"
                 + '<span style="color:#94a3b8;">' + members.length + "人</span>"
@@ -567,8 +653,53 @@
         document.getElementById("themeStats").innerHTML = th;
     }
 
-    function doFilter(t) { /* 排名暂不可用，占位保持兼容 */ showRankingDisabled(); }
-    function renderRanking() {}
+    function doFilter(t) { renderRanking(t); }
+    function renderRanking(filterTheme) {
+        var data = {};
+        var presented = getPresented();
+        presented.forEach(function(name) {
+            var avgObj = getPresenterAvg(name);
+            if(!avgObj) return;
+            data[name] = {
+                avg: parseFloat(avgObj.avg),
+                count: avgObj.count,
+                theme_id: themeMap[name] || 0,
+                dims: avgObj.dims
+            };
+        });
+        var ranking = Object.keys(data).map(function(k){ return { name:k, avg:data[k].avg, count:data[k].count, theme_id:data[k].theme_id, dims:data[k].dims }; });
+        if(filterTheme !== "all") ranking = ranking.filter(function(r){ return r.theme_id === parseInt(filterTheme); });
+        ranking.sort(function(a,b){ return b.avg - a.avg; });
+        var listDiv = document.getElementById("rankList");
+        if(!ranking.length) listDiv.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:30px;">暂无评分数据</div>';
+        else {
+            var h = "";
+            for(var i=0;i<ranking.length;i++) {
+                var r = ranking[i];
+                var theme = THEMES.find(function(t){ return t.id === r.theme_id; });
+                var pc = i===0?"top1":i===1?"top2":i===2?"top3":"";
+                var tag = theme ? '<span class="theme-tag theme-'+theme.id+' rank-theme">'+theme.title+"</span>" : "";
+                h += '<div class="rank-item"><span class="rank-pos '+pc+'">'+(i+1)+'</span><span class="rank-name">'+r.name+'</span>'+tag
+                    +'<span class="rank-score">'+r.avg.toFixed(1)+"/"+MAX_TOTAL+'</span>'
+                    +'<span class="rank-count">('+r.count+"人评分)</span>"
+                    +'<span class="rank-details">内容'+r.dims.content_quality+' | 表达'+r.dims.presentation_skills+'</span></div>';
+            }
+            listDiv.innerHTML = h;
+        }
+        var dg = document.getElementById("detailGrid");
+        var dh = "";
+        for(var j=0;j<Math.min(ranking.length,10);j++) {
+            var r2 = ranking[j];
+            var theme2 = THEMES.find(function(t){ return t.id===r2.theme_id; });
+            var tag2 = theme2 ? '<span class="theme-tag theme-'+theme2.id+'" style="font-size:0.7rem;">'+theme2.title+"</span>" : "";
+            dh += '<div class="detail-card"><h4>'+r2.name+" "+tag2+'</h4>'
+                + '<div class="detail-row"><span class="dl">总分平均</span><span class="dv">'+r2.avg.toFixed(1)+"/"+MAX_TOTAL+'</span></div>'
+                + '<div class="detail-row"><span class="dl">内容深度</span><span class="dv">'+r2.dims.content_quality+'/10</span></div>'
+                + '<div class="detail-row"><span class="dl">表达清晰</span><span class="dv">'+r2.dims.presentation_skills+'/10</span></div>'
+                + '<div class="detail-row"><span class="dl">评分人数</span><span class="dv">'+r2.count+'/'+(MEMBERS.length-1)+'</span></div></div>';
+        }
+        dg.innerHTML = dh;
+    }
 
     document.getElementById("modalOverlay").addEventListener("click", function(e) { if(e.target===this) closeModal(); });
     document.addEventListener("DOMContentLoaded", async function() {
@@ -576,13 +707,13 @@
         if(!ok) return;
         var connTest = await testBaseConnection();
         if(!connTest) {
-            showGlobalError("基础数据库连接失败", "无法连接到 Supabase，请检查网络或确认 URL/Key 正确。\n当前配置："+localStorage.getItem("supabaseUrl"));
+            showGlobalError("基础数据库连接失败", "无法连接到 Supabase 数据库，请检查 network 或确认 URL/Key 正确。\n当前配置：\nURL: "+localStorage.getItem("supabaseUrl")+"\nKey: "+localStorage.getItem("supabaseKey"));
             return;
         }
         await loadData();
         var dl = document.getElementById("nameList");
         MEMBERS.forEach(function(m){ var o=document.createElement("option"); o.value=m; dl.appendChild(o); });
-        if(isDbReady) showMsg("数据库连接成功，可正常打分与撤销", true);
+        if(isDbReady) showMsg("数据库连接成功", true);
     });
     </script>
 </body>
