@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<!-- version11 -->
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 拓边实验室 - 讲演预约系统</title>
+    <title>AI 拓边实验室 - 讲演预约系统 (ver01)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
     if (!window.supabase || !window.supabase.createClient) {
@@ -47,7 +46,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>AI 拓边实验室 - 讲演预约系统</h1>
+            <h1>AI 拓边实验室 - 讲演预约系统 (ver01)</h1>
             <p>从2026年4月23日开始，每周三进行讲演汇报。每次3人讲演，请选择合适的时间预约。</p>
             <div class="nav-links">
                 <a href="index.html" class="nav-btn">🏠 返回报名系统</a>
@@ -164,7 +163,7 @@
                     }
                     var cancelBtn = '';
                     if (booking.participant_name === currentName) {
-                        cancelBtn = ' <button onclick="cancelBooking(' + booking.id + ')" style="float:right;background:#ef4444;color:white;border:none;padding:2px 8px;border-radius:4px;font-size:12px;">取消</button>';
+                        cancelBtn = ' <button onclick="cancelBooking(' + booking.id + ')" style="float:right;background:#ef4444;color:white;border:none;padding:2px 8px;border-radius:4px;font-size:12px;cursor:pointer;">取消</button>';
                     }
                     return '<div class="time-slot">第' + slot + '位: ' + booking.participant_name + cancelBtn + '</div>';
                 }).join('');
@@ -186,7 +185,7 @@
             const list = document.getElementById('my-bookings-list');
             list.innerHTML = myBookings.length ? myBookings.map(b => {
                 const week = PRESENTATION_WEEKS.find(w => w.id === b.week_id);
-                return `<div>${week?.label} - 第${b.slot_number}位讲演 <button onclick="cancelBooking(${b.id})" style="float:right;background:#ef4444;color:white;border:none;padding:2px 8px;border-radius:4px;">取消</button></div>`;
+                return `<div style="margin-bottom:10px;">${week?.label} - 第${b.slot_number}位讲演 <button onclick="cancelBooking(${b.id})" style="float:right;background:#ef4444;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">取消</button></div>`;
             }).join('') : '<div>暂无预约记录</div>';
         }
 
@@ -247,19 +246,31 @@
         async function cancelBooking(bookingId) {
             if (!confirm('确定取消预约?')) return;
             try {
-                // 先验证该预约是否属于当前用户
+                // 1. 先验证该预约是否属于当前用户
                 var name = document.getElementById('participant-name').value.trim();
                 var { data: bookingData } = await supabaseClient.from('presentation_bookings').select('participant_name').eq('id', bookingId).single();
                 if (!bookingData || bookingData.participant_name !== name) {
                     showMessage('无法取消他人的预约', 'error');
                     return;
                 }
-                var result = await supabaseClient.from('presentation_bookings').delete().eq('id', bookingId);
-                if (result.error) {
-                    console.error('Delete error:', result.error);
-                    showMessage('取消失败: ' + result.error.message, 'error');
+                
+                // 2. 携带 .select() 进行强制彻底删除操作，捕获数据库的实际返回状态
+                var { data: deletedData, error } = await supabaseClient
+                    .from('presentation_bookings')
+                    .delete()
+                    .eq('id', bookingId)
+                    .select();
+
+                if (error) {
+                    throw error;
+                }
+
+                // 3. 核心防拦截检查：如果没有报错，但返回的数据为空，说明遭遇了行级安全策略（RLS）拦截
+                if (!deletedData || deletedData.length === 0) {
+                    showMessage('取消失败：被数据库安全策略(RLS)拦截，请在Supabase后台开放DELETE权限', 'error');
                     return;
                 }
+
                 showMessage('已取消', 'success');
                 loadBookings();
             } catch (error) {

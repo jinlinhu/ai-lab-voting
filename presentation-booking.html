@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 拓边实验室 - 讲演预约系统 (ver01)</title>
+    <title>AI 拓边实验室 - 讲演预约系统 (ver02)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
     if (!window.supabase || !window.supabase.createClient) {
@@ -46,7 +46,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>AI 拓边实验室 - 讲演预约系统 (ver01)</h1>
+            <h1>AI 拓边实验室 - 讲演预约系统 (ver02)</h1>
             <p>从2026年4月23日开始，每周三进行讲演汇报。每次3人讲演，请选择合适的时间预约。</p>
             <div class="nav-links">
                 <a href="index.html" class="nav-btn">🏠 返回报名系统</a>
@@ -280,8 +280,22 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            const nameInput = document.getElementById('participant-name');
+            
+            // 页面加载时恢复保存的姓名
+            const savedName = localStorage.getItem('bookingParticipantName');
+            if (savedName) {
+                nameInput.value = savedName;
+            }
+
+            // 初始化加载数据（它会使用刚刚恢复的姓名来渲染按钮）
             loadConfig();
-            document.getElementById('participant-name').addEventListener('input', () => loadBookings());
+
+            // 监听输入，实时保存并刷新视图
+            nameInput.addEventListener('input', (e) => {
+                localStorage.setItem('bookingParticipantName', e.target.value.trim());
+                loadBookings();
+            });
         });
     </script>
 </body>
