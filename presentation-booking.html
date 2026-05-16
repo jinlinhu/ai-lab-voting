@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 拓边实验室 - 讲演预约系统 (ver02)</title>
+    <title>AI 拓边实验室 - 讲演预约系统 (ver03)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
     if (!window.supabase || !window.supabase.createClient) {
@@ -46,7 +46,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>AI 拓边实验室 - 讲演预约系统 (ver02)</h1>
+            <h1>AI 拓边实验室 - 讲演预约系统 (ver03)</h1>
             <p>从2026年4月23日开始，每周三进行讲演汇报。每次3人讲演，请选择合适的时间预约。</p>
             <div class="nav-links">
                 <a href="index.html" class="nav-btn">🏠 返回报名系统</a>
@@ -70,15 +70,6 @@
                 <label>选择讲演周次</label>
                 <select id="booking-week" class="form-select">
                     <option value="">请选择周次</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>选择讲演顺序</label>
-                <select id="booking-slot" class="form-select">
-                    <option value="">请选择顺序</option>
-                    <option value="1">第1位讲演</option>
-                    <option value="2">第2位讲演</option>
-                    <option value="3">第3位讲演</option>
                 </select>
             </div>
             <button class="book-btn" onclick="bookPresentation()">预约讲演</button>
@@ -199,39 +190,40 @@
         async function bookPresentation() {
             const name = document.getElementById('participant-name').value.trim();
             const weekId = parseInt(document.getElementById('booking-week').value);
-            const slotNumber = parseInt(document.getElementById('booking-slot').value);
 
             if (!name || !VALID_NAMES.includes(name)) {
                 showMessage('请输入有效的姓名', 'error'); return;
             }
-            if (!weekId || !slotNumber) {
-                showMessage('请选择周次和顺序', 'error'); return;
+            if (!weekId) {
+                showMessage('请选择周次', 'error'); return;
             }
 
             try {
-                // 检查是否已预约
+                // 1. 检查当前用户是否已在任意周次预约过
                 const { data: existing } = await supabaseClient.from('presentation_bookings').select('id').eq('participant_name', name);
                 if (existing.length > 0) {
                     showMessage('您已经预约过', 'error'); return;
                 }
 
-                // 检查时间段是否可用
-                const { data: slotBookings } = await supabaseClient.from('presentation_bookings').select('id').eq('week_id', weekId).eq('slot_number', slotNumber);
-                if (slotBookings.length > 0) {
-                    showMessage('该时间段已被预约', 'error'); return;
-                }
-
-                // 检查本周是否已满
-                const { data: weekBookings } = await supabaseClient.from('presentation_bookings').select('id').eq('week_id', weekId);
+                // 2. 检查本周是否已满，并获取本周已占用的位置顺序
+                const { data: weekBookings } = await supabaseClient.from('presentation_bookings').select('slot_number').eq('week_id', weekId);
                 if (weekBookings.length >= 3) {
-                    showMessage('本周已满', 'error'); return;
+                    showMessage('本周名额已满，请选择其他周次', 'error'); return;
                 }
 
-                // 创建预约
+                // 3. 自动计算下一个可用的空位 (1, 2, or 3)
+                const takenSlots = weekBookings.map(b => b.slot_number);
+                const nextAvailableSlot = [1, 2, 3].find(slot => !takenSlots.includes(slot));
+
+                if (!nextAvailableSlot) {
+                    showMessage('分配顺序失败，数据异常', 'error'); return;
+                }
+
+                // 4. 创建预约，自动填入计算出的顺序
                 await supabaseClient.from('presentation_bookings').insert([{
                     participant_name: name,
                     week_id: weekId,
-                    slot_number: slotNumber,
+                    slot_number: nextAvailableSlot,
                     booked_at: new Date().toISOString()
                 }]);
 
@@ -246,7 +238,6 @@
         async function cancelBooking(bookingId) {
             if (!confirm('确定取消预约?')) return;
             try {
-                // 1. 先验证该预约是否属于当前用户
                 var name = document.getElementById('participant-name').value.trim();
                 var { data: bookingData } = await supabaseClient.from('presentation_bookings').select('participant_name').eq('id', bookingId).single();
                 if (!bookingData || bookingData.participant_name !== name) {
@@ -254,7 +245,6 @@
                     return;
                 }
                 
-                // 2. 携带 .select() 进行强制彻底删除操作，捕获数据库的实际返回状态
                 var { data: deletedData, error } = await supabaseClient
                     .from('presentation_bookings')
                     .delete()
@@ -265,7 +255,6 @@
                     throw error;
                 }
 
-                // 3. 核心防拦截检查：如果没有报错，但返回的数据为空，说明遭遇了行级安全策略（RLS）拦截
                 if (!deletedData || deletedData.length === 0) {
                     showMessage('取消失败：被数据库安全策略(RLS)拦截，请在Supabase后台开放DELETE权限', 'error');
                     return;
@@ -288,7 +277,7 @@
                 nameInput.value = savedName;
             }
 
-            // 初始化加载数据（它会使用刚刚恢复的姓名来渲染按钮）
+            // 初始化加载数据
             loadConfig();
 
             // 监听输入，实时保存并刷新视图
