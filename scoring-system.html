@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- version11 -->
+<!-- version12 -->
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -474,13 +474,30 @@
         try {
             var result = await supabaseClient.from("presentation_scores").delete().eq("rater_name", curRater).eq("presenter_name", name);
             if (result.error) throw result.error;
+            if (result.data && result.data.length === 0) {
+                var check = await supabaseClient.from("presentation_scores").select("id").eq("rater_name", curRater).eq("presenter_name", name);
+                if (check.data && check.data.length > 0) throw new Error("DELETE 被数据库安全策略拦截");
+            }
             showMsg("评分已撤销", true);
-            await loadData();
-            renderScoringGrid();
-            if (document.querySelector(".tab-btn.active").innerText.includes("进度")) renderProgress();
         } catch (e) {
-            showMsg("撤销失败: " + e.message, false);
+            try {
+                var upd = await supabaseClient.from("presentation_scores").update({
+                    content_quality: 0,
+                    presentation_skills: 0,
+                    score: 0,
+                    comment: null
+                }).eq("rater_name", curRater).eq("presenter_name", name);
+                if (upd.error) throw upd.error;
+                if (upd.data && upd.data.length === 0) throw new Error("UPDATE 也被安全策略拦截");
+                showMsg("评分已重置（原记录因安全策略无法删除）", true);
+            } catch (e2) {
+                showMsg("撤销失败: " + e2.message + "。请在 Supabase 中执行：CREATE POLICY \"allow_delete\" ON presentation_scores FOR DELETE USING (rater_name = auth.jwt()->>'email' OR true);", false);
+                return;
+            }
         }
+        await loadData();
+        renderScoringGrid();
+        if (document.querySelector(".tab-btn.active").innerText.includes("进度")) renderProgress();
     }
 
     function renderScoringGrid() {
