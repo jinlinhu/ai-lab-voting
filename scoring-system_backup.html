@@ -598,18 +598,8 @@
                 comment: document.getElementById("modalComment").value.trim() || null,
                 scored_at: new Date().toISOString()
             };
-            
-            // 关键修改：加上 .select() 强制返回插入的数据
-            var { data: insertedData, error } = await supabaseClient.from("presentation_scores").insert([insertObj]).select();
-            
-            if (error) throw error;
-            
-            // 核心防拦截检查
-            if (!insertedData || insertedData.length === 0) {
-                showMsg("提交失败：被数据库安全策略(RLS)拦截，请在Supabase后台开放INSERT权限", false);
-                return;
-            }
-
+            var result = await supabaseClient.from("presentation_scores").insert([insertObj]);
+            if (result.error) throw result.error;
             showMsg("评分提交成功！", true);
             closeModal();
             await loadData();
@@ -731,4 +721,3 @@
     </script>
 </body>
 </html>
-}
