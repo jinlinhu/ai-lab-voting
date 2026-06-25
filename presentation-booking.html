@@ -55,9 +55,9 @@
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card"><div class="stat-value" id="total-slots">20</div><div>总讲演名额</div></div>
+            <div class="stat-card"><div class="stat-value" id="total-slots">36</div><div>总讲演名额</div></div>
             <div class="stat-card"><div class="stat-value" id="booked-slots">0</div><div>已预约名额</div></div>
-            <div class="stat-card"><div class="stat-value" id="remaining-slots">20</div><div>剩余名额</div></div>
+            <div class="stat-card"><div class="stat-value" id="remaining-slots">36</div><div>剩余名额</div></div>
         </div>
 
         <div class="booking-form">
@@ -99,13 +99,13 @@
             { id: 6, date: '2026-06-04', label: '第6周 (6月4日)' },
             { id: 7, date: '2026-06-11', label: '第7周 (6月11日)' },
             { id: 8, date: '2026-06-18', label: '第8周 (6月18日)' },
-			{ id: 9, date: '2026-06-18', label: '第9周 (6月25日)' },
-			{ id: 10, date: '2026-06-18', label: '第10周 (7月02日)' },
-			{ id: 11, date: '2026-06-18', label: '第11周 (7月09日)' },
-			{ id: 12, date: '2026-06-18', label: '第11周 (7月16日)' }
+			{ id: 9, date: '2026-06-25', label: '第9周 (6月25日)' },
+			{ id: 10, date: '2026-07-02', label: '第10周 (7月02日)' },
+			{ id: 11, date: '2026-07-09', label: '第11周 (7月09日)' },
+			{ id: 12, date: '2026-07-16', label: '第12周 (7月16日)' }
         ];
 
-        const TOTAL_SLOTS = 20;
+        const TOTAL_SLOTS = 36;
 
         const VALID_NAMES = ["昌胜骐","陈华炎","陈玉林","成余刚","贺焱","胡金林","胡一帆","计国锋","蒋伟","孔超","刘健","刘煜","栾梦杰","闵于","钱建军","王昊俣","王省超","吴之祥","张文宇","周伟","柳青松","郭文钰","朱松","周铭宇","傅鑫榕"];
 
@@ -150,7 +150,7 @@
             const grid = document.getElementById('scheduleGrid');
             const currentName = document.getElementById('participant-name').value.trim();
             grid.innerHTML = PRESENTATION_WEEKS.map(week => {
-                const weekBookings = bookings.filter(b => b.week_id === week.id);
+                const weekBookings = bookings.filter(b => Number(b.week_id) === week.id);
                 const slots = [1,2,3].map(slot => {
                     const booking = weekBookings.find(b => b.slot_number === slot);
                     if (!booking) {
@@ -179,7 +179,7 @@
             const myBookings = bookings.filter(b => b.participant_name === name);
             const list = document.getElementById('my-bookings-list');
             list.innerHTML = myBookings.length ? myBookings.map(b => {
-                const week = PRESENTATION_WEEKS.find(w => w.id === b.week_id);
+                const week = PRESENTATION_WEEKS.find(w => w.id === Number(b.week_id));
                 return `<div style="margin-bottom:10px;">${week?.label} - 第${b.slot_number}位讲演 <button onclick="cancelBooking(${b.id})" style="float:right;background:#ef4444;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">取消</button></div>`;
             }).join('') : '<div>暂无预约记录</div>';
         }
@@ -224,12 +224,22 @@
                 }
 
                 // 4. 创建预约，自动填入计算出的顺序
-                await supabaseClient.from('presentation_bookings').insert([{
+                const { data: insertedData, error: insertError } = await supabaseClient.from('presentation_bookings').insert([{
                     participant_name: name,
                     week_id: weekId,
                     slot_number: nextAvailableSlot,
                     booked_at: new Date().toISOString()
-                }]);
+                }]).select();
+
+                if (insertError) {
+                    showMessage('预约失败: ' + insertError.message, 'error');
+                    return;
+                }
+
+                if (!insertedData || insertedData.length === 0) {
+                    showMessage('预约失败：数据未成功写入，可能被数据库安全策略(RLS)拦截，请检查Supabase后台权限', 'error');
+                    return;
+                }
 
                 showMessage('预约成功!', 'success');
                 loadBookings();
