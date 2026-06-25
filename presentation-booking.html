@@ -23,8 +23,15 @@
         .nav-btn { padding: 10px 20px; background: rgba(96, 165, 250, 0.1); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; color: #60a5fa; text-decoration: none; font-weight: 600; }
 
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 20px; text-align: center; }
+        .stat-card { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 20px; text-align: center; position: relative; }
+        .stat-card.remaining-card { cursor: pointer; }
         .stat-value { font-size: 2rem; font-weight: 700; background: linear-gradient(90deg, #60a5fa, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .tooltip-popup { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 10px; background: rgba(15, 23, 42, 0.98); border: 1px solid rgba(96, 165, 250, 0.5); border-radius: 10px; padding: 15px; min-width: 200px; max-width: 280px; z-index: 100; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        .tooltip-popup::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 8px solid transparent; border-top-color: rgba(96, 165, 250, 0.5); }
+        .tooltip-popup .tooltip-title { color: #60a5fa; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem; }
+        .tooltip-popup .tooltip-list { color: #e2e8f0; font-size: 0.85rem; line-height: 1.8; }
+        .tooltip-popup .tooltip-empty { color: #94a3b8; font-size: 0.85rem; }
 
         .booking-form, .my-bookings { background: rgba(30, 41, 59, 0.9); border-radius: 15px; padding: 25px; margin-bottom: 30px; }
         .form-group { margin-bottom: 20px; }
@@ -57,7 +64,14 @@
         <div class="stats-grid">
             <div class="stat-card"><div class="stat-value" id="total-slots">20</div><div>总讲演名额</div></div>
             <div class="stat-card"><div class="stat-value" id="booked-slots">0</div><div>已预约名额</div></div>
-            <div class="stat-card"><div class="stat-value" id="remaining-slots">20</div><div>剩余名额</div></div>
+            <div class="stat-card remaining-card" id="remaining-card">
+                <div class="stat-value" id="remaining-slots">20</div>
+                <div>剩余名额</div>
+                <div class="tooltip-popup" id="remaining-tooltip">
+                    <div class="tooltip-title">📋 尚未预约的人员</div>
+                    <div class="tooltip-list" id="unbooked-list"></div>
+                </div>
+            </div>
         </div>
 
         <div class="booking-form">
@@ -110,6 +124,7 @@
         const VALID_NAMES = ["昌胜骐","陈华炎","陈玉林","成余刚","贺焱","胡金林","胡一帆","计国锋","蒋伟","孔超","刘健","刘煜","栾梦杰","闵于","钱建军","王昊俣","王省超","吴之祥","张文宇","周伟","柳青松","郭文钰","朱松","周铭宇","傅鑫榕"];
 
         let supabaseClient = null;
+        let currentBookings = [];
 
         function showMessage(text, type = 'info') {
             const msg = document.createElement('div');
@@ -137,9 +152,10 @@
             if (!supabaseClient) return;
             try {
                 const { data } = await supabaseClient.from('presentation_bookings').select('*').order('week_id').order('slot_number');
-                updateSchedule(data || []);
-                updateStats(data || []);
-                updateMyBookings(data || []);
+                currentBookings = data || [];
+                updateSchedule(currentBookings);
+                updateStats(currentBookings);
+                updateMyBookings(currentBookings);
                 populateWeekSelect();
             } catch (error) {
                 console.error('加载失败:', error);
@@ -168,9 +184,18 @@
 
         function updateStats(bookings) {
             const booked = bookings.length;
+            const bookedNames = [...new Set(bookings.map(b => b.participant_name))];
+            const unbookedNames = VALID_NAMES.filter(n => !bookedNames.includes(n));
             document.getElementById('total-slots').textContent = TOTAL_SLOTS;
             document.getElementById('booked-slots').textContent = booked;
             document.getElementById('remaining-slots').textContent = TOTAL_SLOTS - booked;
+            // 更新悬停弹框内容
+            const listEl = document.getElementById('unbooked-list');
+            if (unbookedNames.length === 0) {
+                listEl.innerHTML = '<div class="tooltip-empty">🎉 所有人都已预约!</div>';
+            } else {
+                listEl.innerHTML = unbookedNames.map(n => `<span>• ${n}</span>`).join('<br>');
+            }
         }
 
         function updateMyBookings(bookings) {
@@ -187,7 +212,9 @@
         function populateWeekSelect() {
             const select = document.getElementById('booking-week');
             const currentValue = select.value;
-            select.innerHTML = '<option value="">请选择周次</option>' + PRESENTATION_WEEKS.map(w => `<option value="${w.id}">${w.label}</option>`).join('');
+            const today = new Date().toISOString().split('T')[0];
+            const availableWeeks = PRESENTATION_WEEKS.filter(w => w.date >= today);
+            select.innerHTML = '<option value="">请选择周次</option>' + availableWeeks.map(w => `<option value="${w.id}">${w.label}</option>`).join('');
             select.value = currentValue;
         }
 
@@ -299,6 +326,12 @@
                 localStorage.setItem('bookingParticipantName', e.target.value.trim());
                 loadBookings();
             });
+
+            // 剩余名额卡片悬停弹框
+            const remainingCard = document.getElementById('remaining-card');
+            const tooltip = document.getElementById('remaining-tooltip');
+            remainingCard.addEventListener('mouseenter', () => { tooltip.style.display = 'block'; });
+            remainingCard.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
         });
     </script>
 </body>
